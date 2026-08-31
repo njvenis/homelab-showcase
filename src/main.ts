@@ -1,60 +1,52 @@
 import './style.css'
-import heroImg from './assets/hero.png'
-import typescriptLogo from './assets/typescript.svg'
-import viteLogo from './assets/vite.svg'
-import { setupCounter } from './counter.ts'
+import { topology } from './data/load.ts'
+import { layout, getNodePositions } from './layout.ts'
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+const NODE_HEIGHT = 36
+const NODE_RX = 8
+const ZONE_RX = 16
 
-<div class="ticks"></div>
+function esc(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+function nodeWidth(label: string, zoneInner: number): number {
+  // ponytail: width estimated from char count, capped at the zone's inner width;
+  // upgrade to canvas measureText if labels visibly collide
+  return Math.min(label.length * 7.2 + 24, zoneInner)
+}
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`
+function renderTopology(): string {
+  const { width, height } = layout.viewBox
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!)
+  const zoneEls = topology.zones.map((zone) => {
+    const r = layout.zones[zone.id as keyof typeof layout.zones]
+    if (!r) throw new Error(`no layout for zone: ${zone.id}`)
+    const sub = zone.sub
+      ? `<text class="zone-sub" x="${r.x + r.padding}" y="${r.y + r.padding + 22}">${esc(zone.sub)}</text>`
+      : ''
+    return (
+      `<rect class="zone" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="${ZONE_RX}"/>` +
+      `<text class="zone-label" x="${r.x + r.padding}" y="${r.y + r.padding}">${esc(zone.label)}</text>` +
+      sub
+    )
+  })
+
+  const nodeEls = topology.zones.flatMap((zone) => {
+    const r = layout.zones[zone.id as keyof typeof layout.zones]!
+    const positions = getNodePositions(zone.id)
+    const inner = r.width - r.padding * 2 - 8
+    return topology.nodes.filter((node) => node.zone === zone.id).map((node) => {
+      const p = positions.get(node.id)!
+      const w = nodeWidth(node.label, inner)
+      return (
+        `<rect class="node-box${node.transitional ? ' node--transitional' : ''}" x="${(p.x - w / 2).toFixed(1)}" y="${(p.y - NODE_HEIGHT / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${NODE_HEIGHT}" rx="${NODE_RX}"/>` +
+        `<text class="node-label" x="${p.x}" y="${p.y + 4}">${esc(node.label)}</text>`
+      )
+    })
+  })
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Homelab stack topology">${zoneEls.join('')}${nodeEls.join('')}</svg>`
+}
+
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = renderTopology()

@@ -41,3 +41,44 @@ body {
   background: var(--substrate);
   color: var(--ink);
 }
+
+#app svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.zone {
+  fill: var(--surface);
+  stroke: var(--rule);
+}
+
+.zone-label {
+  fill: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.zone-sub {
+  fill: var(--ink-muted);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+}
+
+.node-box {
+  fill: var(--substrate);
+  stroke: var(--rule);
+}
+
+.node--transitional {
+  stroke-dasharray: 6 4;
+}
+
+.node-label {
+  fill: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  text-anchor: middle;
+}
