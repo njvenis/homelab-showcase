@@ -451,6 +451,9 @@ body {
 .node-box {
   fill: var(--substrate);
   stroke: var(--rule);
+  /* focus/selected strokes are drawn in screen pixels, so the ring stays
+     visible when the viewBox is scaled down in the stacked layout */
+  vector-effect: non-scaling-stroke;
 }
 
 .node--transitional {

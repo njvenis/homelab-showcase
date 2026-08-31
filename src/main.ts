@@ -34,6 +34,27 @@ function esc(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
+function topologyDescription(): string {
+  const labelById = new Map(topology.nodes.map((node) => [node.id, node.label]))
+  const zones = topology.zones
+    .map((zone) => {
+      const members = topology.nodes.filter((node) => node.zone === zone.id).map((node) => node.label).join(', ')
+      const sub = zone.sub ? ` (${zone.sub})` : ''
+      return `Zone ${zone.label}${sub}: ${members}`
+    })
+    .join('. ')
+  const connections = topology.edges
+    .map((edge) => {
+      const from = labelById.get(edge.from) ?? edge.from
+      const to = labelById.get(edge.to) ?? edge.to
+      return edge.bidirectional
+        ? `${from} and ${to} connect bidirectionally (${kindLabels[edge.kind]} flow)`
+        : `${from} sends to ${to} (${kindLabels[edge.kind]} flow)`
+    })
+    .join('. ')
+  return `Diagram of the homelab stack. ${zones}. Connections: ${connections}`
+}
+
 function renderTopology(): string {
   const { width, height } = layout.viewBox
 
@@ -82,7 +103,7 @@ function renderTopology(): string {
     })
   })
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="topology-title"><title id="topology-title">Homelab stack topology</title>${markerDefs}${zoneEls.join('')}${edgeEls.join('')}${nodeEls.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="topology-title" aria-describedby="topology-desc"><title id="topology-title">Homelab stack topology</title><desc id="topology-desc">${esc(topologyDescription())}</desc>${markerDefs}${zoneEls.join('')}${edgeEls.join('')}${nodeEls.join('')}</svg>`
 }
 
 function renderScenarioRail(): string {
