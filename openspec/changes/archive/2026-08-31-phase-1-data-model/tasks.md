@@ -15,4 +15,4 @@
 
 ## 4. Step checkpoint
 
-- [ ] 4.1 Run the runbook Step 4 checkpoint: deliberately break an edge reference, verify `npm run validate` exits non-zero and names the bad id, verify `npm run build` refuses to run, restore the data, commit, merge the phase branch, tag `phase-1`, and archive the OpenSpec change
+- [x] 4.1 Run the runbook Step 4 checkpoint: deliberately break an edge reference, verify `npm run validate` exits non-zero and names the bad id, verify `npm run build` refuses to run, restore the data, commit, merge the phase branch, tag `phase-1`, and archive the OpenSpec change
