@@ -12,4 +12,4 @@
 ## 3. Integration and acceptance
 
 - [x] 3.1 Style and compose the inspector, dimming layer, scenario rail, legend, and focus states within the existing visual system without adding a dependency; verify the page builds and the inspector remains readable and operable over the dimmed canvas.
-- [ ] 3.2 Run `npm run validate` and `npm run build`, then manually complete the Step 10 checkpoint: traverse the full page by keyboard, confirm every node has a visible focus ring, open an inspector, verify the canvas dims, dismiss with Escape, confirm focus returns to the invoking node, and start/identify a scenario from the rail.
+- [x] 3.2 Run `npm run validate` and `npm run build`, then manually complete the Step 10 checkpoint: traverse the full page by keyboard, confirm every node has a visible focus ring, open an inspector, verify the canvas dims, dismiss with Escape, confirm focus returns to the invoking node, and start/identify a scenario from the rail.
