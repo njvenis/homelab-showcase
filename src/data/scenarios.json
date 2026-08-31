@@ -41,11 +41,11 @@
     "caption": "A task needs imagery. llama-swap unloads Qwen from the GPU, holds nothing, loads the diffusion model, ComfyUI generates, and the group returns to Qwen. One model resident at a time — the constraint enforced, not described.",
     "hops": [
       { "edge": "opencode-swap", "at": 0, "duration": 600 },
-      { "edge": "swap-ninfer", "at": 600, "duration": 900 },
-      { "edge": "swap-comfy", "at": 2400, "duration": 900 },
-      { "edge": "swap-comfy", "at": 3300, "duration": 1400 },
-      { "edge": "swap-ninfer", "at": 4700, "duration": 900 },
-      { "edge": "opencode-swap", "at": 5600, "duration": 500, "reverse": true }
+      { "edge": "swap-ninfer", "at": 600, "duration": 900, "reverse": true },
+      { "edge": "swap-comfy", "at": 2700, "duration": 800 },
+      { "edge": "swap-comfy", "at": 3500, "duration": 1400, "reverse": true },
+      { "edge": "swap-ninfer", "at": 4900, "duration": 900 },
+      { "edge": "opencode-swap", "at": 5800, "duration": 500, "reverse": true }
     ]
   },
   {
