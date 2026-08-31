@@ -1,0 +1,63 @@
+[
+  {
+    "id": "morning-briefing",
+    "name": "Morning briefing",
+    "caption": "08:30: the digest job hands the day's threat intel to Claude Cowork and writes the returned briefing to local files. 08:45: n8n's internal cron picks them up, renders HTML, and hands it to Resend. It lands in the work inbox. The only flow that leaves the house and comes back.",
+    "hops": [
+      { "edge": "digest-cowork", "at": 0, "duration": 1200 },
+      { "edge": "digest-cowork", "at": 1200, "duration": 800, "reverse": true },
+      { "edge": "digest-n8n", "at": 2800, "duration": 600 },
+      { "edge": "n8n-resend", "at": 3400, "duration": 800 },
+      { "edge": "resend-inbox", "at": 4200, "duration": 600 }
+    ]
+  },
+  {
+    "id": "discord-task",
+    "name": "Task from Discord",
+    "caption": "A message arrives on Discord and reaches Hermes, which routes it to the workspace as MCP sender and on to OpenCode. Four subagents fan out and work through llama-swap, Mnemosyne is read and written, the run is traced to Langfuse, and the result returns to Discord.",
+    "hops": [
+      { "edge": "discord-hermes", "at": 0, "duration": 600 },
+      { "edge": "hermes-workspace", "at": 600, "duration": 500 },
+      { "edge": "workspace-opencode", "at": 1100, "duration": 500 },
+      { "edge": "opencode-swap", "at": 1600, "duration": 600 },
+      { "edge": "swap-ninfer", "at": 2200, "duration": 1000 },
+      { "edge": "opencode-mnemosyne", "at": 3200, "duration": 400 },
+      { "edge": "opencode-mnemosyne", "at": 3600, "duration": 400, "reverse": true },
+      { "edge": "opencode-langfuse", "at": 4000, "duration": 500 },
+      { "edge": "workspace-opencode", "at": 4500, "duration": 400, "reverse": true },
+      { "edge": "hermes-workspace", "at": 4900, "duration": 400, "reverse": true },
+      { "edge": "discord-hermes", "at": 5300, "duration": 600, "reverse": true }
+    ]
+  },
+  {
+    "id": "model-swap",
+    "name": "Model swap",
+    "caption": "A task needs imagery. llama-swap unloads Qwen from the GPU, holds nothing, loads the diffusion model, ComfyUI generates, and the group returns to Qwen. One model resident at a time — the constraint enforced, not described.",
+    "hops": [
+      { "edge": "opencode-swap", "at": 0, "duration": 600 },
+      { "edge": "swap-ninfer", "at": 600, "duration": 900 },
+      { "edge": "swap-comfy", "at": 2400, "duration": 900 },
+      { "edge": "swap-comfy", "at": 3300, "duration": 1400 },
+      { "edge": "swap-ninfer", "at": 4700, "duration": 900 },
+      { "edge": "opencode-swap", "at": 5600, "duration": 500, "reverse": true }
+    ]
+  },
+  {
+    "id": "health-sweep",
+    "name": "Health sweep",
+    "caption": "cron fires its scheduled checks and triggers maintenance, and the metrics land in Grafana.",
+    "hops": [
+      { "edge": "cron-n8n", "at": 0, "duration": 700 },
+      { "edge": "cron-grafana", "at": 700, "duration": 900 }
+    ]
+  },
+  {
+    "id": "off-network-access",
+    "name": "Off-network access",
+    "caption": "A phone joins the tailnet from anywhere and reaches Hermes. Nothing is exposed publicly, no ports open.",
+    "hops": [
+      { "edge": "phone-tailscale", "at": 0, "duration": 700 },
+      { "edge": "tailscale-hermes", "at": 700, "duration": 700 }
+    ]
+  }
+]
