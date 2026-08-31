@@ -25,15 +25,31 @@
 :root {
   --substrate: #121A22;
   --surface: #1B2530;
+  --surface-2: #24303E;
   --rule: #34424F;
   --ink: #E4EAF0;
-  --ink-muted: #8FA0B0;
+  --ink-muted: #93A5B5;
 
   --flow-control: #F2C14E;
   --flow-memory: #7FB2A8;
   --flow-infer: #A88BD8;
   --flow-health: #6E9BD8;
   --flow-egress: #D96C7A;
+  --flow-network: #93ACC4;
+
+  --edge-idle-control: color-mix(in oklch, var(--flow-control) 30%, var(--rule));
+  --edge-idle-memory: color-mix(in oklch, var(--flow-memory) 30%, var(--rule));
+  --edge-idle-infer: color-mix(in oklch, var(--flow-infer) 30%, var(--rule));
+  --edge-idle-health: color-mix(in oklch, var(--flow-health) 30%, var(--rule));
+  --edge-idle-egress: color-mix(in oklch, var(--flow-egress) 30%, var(--rule));
+  --edge-idle-network: color-mix(in oklch, var(--flow-network) 30%, var(--rule));
+
+  --bloom-control: color-mix(in oklch, var(--flow-control) 14%, transparent);
+  --bloom-memory: color-mix(in oklch, var(--flow-memory) 14%, transparent);
+  --bloom-infer: color-mix(in oklch, var(--flow-infer) 14%, transparent);
+  --bloom-health: color-mix(in oklch, var(--flow-health) 14%, transparent);
+  --bloom-egress: color-mix(in oklch, var(--flow-egress) 14%, transparent);
+  --bloom-network: color-mix(in oklch, var(--flow-network) 14%, transparent);
 
   --text-body: 1rem;
   --text-subhead: 1.25rem;
@@ -106,16 +122,6 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-
-.section-kicker {
-  color: var(--ink-muted);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.68rem;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  line-height: 1;
-  text-transform: uppercase;
 }
 
 .scenario-rail {
@@ -203,6 +209,19 @@ body {
   position: relative;
   isolation: isolate;
   margin-top: 1.5rem;
+}
+
+/* Single restrained two-hue radial bloom (control + infer are the two dominant
+   edge kinds in topology.json). Behind the SVG, non-interactive, no dot grid or
+   vignette. Hardcoded to the current dominant pair — update here if the
+   topology's kind counts change, rather than deriving it from a random source. */
+.topology-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(62% 74% at 46% 40%, var(--bloom-control) 0%, var(--bloom-infer) 55%, transparent 82%);
 }
 
 #app svg {
@@ -346,7 +365,7 @@ body {
 
 .flow-legend ul {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.85rem;
   margin: 0;
   padding: 0;
@@ -375,13 +394,13 @@ body {
 
 .legend-swatch {
   display: block;
-  width: 0.65rem;
-  height: 0.65rem;
   flex: 0 0 auto;
+  width: 1.4rem;
+  height: 3px;
   margin-top: 0.18rem;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--legend-flow);
-  box-shadow: 0 0 0 2px var(--substrate), 0 0 0 3px var(--legend-flow);
+  box-shadow: 0 0 10px 0 var(--legend-flow);
 }
 
 @media (max-width: 900px) {
@@ -434,6 +453,28 @@ body {
   stroke-width: 1.5;
 }
 
+/* Per-kind idle colors declared after .edge so they win at equal specificity:
+   an idle edge shows its semantic kind hue, falling back to --rule only when
+   unkinded. Active edges are brightened inline by packet.ts and return to this
+   color once it clears the stroke. */
+.edge--control { stroke: var(--edge-idle-control); }
+.edge--memory { stroke: var(--edge-idle-memory); }
+.edge--infer { stroke: var(--edge-idle-infer); }
+.edge--health { stroke: var(--edge-idle-health); }
+.edge--egress { stroke: var(--edge-idle-egress); }
+.edge--network { stroke: var(--edge-idle-network); }
+
+/* Non-semantic, pointer-transparent duplicate path per edge: a low-alpha same-hue
+   glow. Shares the base's kind class so it inherits the kind idle stroke, then
+   widens and dims. During active traffic the base (driven by packet.ts) brightens
+   and this stays a faint same-hue copy beneath it. */
+.edge-glow {
+  fill: none;
+  stroke-width: 4;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
 .packet {
   fill: var(--packet-flow);
   filter: drop-shadow(0 0 3px var(--packet-flow)) drop-shadow(0 0 7px var(--packet-flow));
@@ -477,6 +518,24 @@ body {
 .node--transitional {
   stroke-dasharray: 6 4;
 }
+
+/* Node kind presence: a 6%-of-hue fill tint over the substrate, plus a 3px left
+   accent at 60% opacity in the full kind hue. Both sit beneath the transitional
+   dashes, which stay on the box stroke untouched and remain visible on top. */
+.node--control .node-box { fill: color-mix(in oklch, var(--flow-control) 6%, var(--substrate)); }
+.node--memory .node-box { fill: color-mix(in oklch, var(--flow-memory) 6%, var(--substrate)); }
+.node--infer .node-box { fill: color-mix(in oklch, var(--flow-infer) 6%, var(--substrate)); }
+.node--health .node-box { fill: color-mix(in oklch, var(--flow-health) 6%, var(--substrate)); }
+.node--egress .node-box { fill: color-mix(in oklch, var(--flow-egress) 6%, var(--substrate)); }
+.node--network .node-box { fill: color-mix(in oklch, var(--flow-network) 6%, var(--substrate)); }
+
+.node-accent { opacity: 0.6; }
+.node--control .node-accent { fill: var(--flow-control); }
+.node--memory .node-accent { fill: var(--flow-memory); }
+.node--infer .node-accent { fill: var(--flow-infer); }
+.node--health .node-accent { fill: var(--flow-health); }
+.node--egress .node-accent { fill: var(--flow-egress); }
+.node--network .node-accent { fill: var(--flow-network); }
 
 .node-label {
   fill: var(--ink);

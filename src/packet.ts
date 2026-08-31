@@ -6,7 +6,7 @@ const FADE_EASING = 'cubic-bezier(0.4, 0, 0.2, 1)'
 
 type EdgeActivity = {
   active: Set<symbol>
-  fade?: Animation
+  fades: Animation[]
 }
 
 const edgeActivity = new Map<string, EdgeActivity>()
@@ -16,7 +16,25 @@ const flowVariables: Record<Edge['kind'], string> = {
   memory: '--flow-memory',
   health: '--flow-health',
   egress: '--flow-egress',
-  network: '--flow-control',
+  network: '--flow-network',
+}
+
+// Full-bright during traffic, dimmed per-kind hue at rest. Derived once in CSS
+// as a light mix of each kind's flow hue over --rule; packet.ts animates between.
+const idleTokens: Record<Edge['kind'], string> = {
+  control: '--edge-idle-control',
+  infer: '--edge-idle-infer',
+  memory: '--edge-idle-memory',
+  health: '--edge-idle-health',
+  egress: '--edge-idle-egress',
+  network: '--edge-idle-network',
+}
+
+// The renderer places an aria-hidden duplicate behind each edge, keyed by the
+// same id via data-edge-id. Look the glow up by that id rather than assuming a
+// sibling relationship, so the pairing survives reflows and re-renders.
+function glowFor(edgeId: string): SVGPathElement | null {
+  return document.querySelector<SVGPathElement>(`.edge-glow[data-edge-id="${CSS.escape(edgeId)}"]`)
 }
 
 export type PacketHandle = {
@@ -32,10 +50,11 @@ export function resetPacketActivity(): void {
   })
 
   for (const [edgeId, activity] of edgeActivity) {
-    activity.fade?.cancel()
-    const edgePath = [...document.querySelectorAll<SVGPathElement>('path.edge')].find((path) => path.id === edgeId)
-    edgePath?.getAnimations().forEach((animation) => animation.cancel())
-    edgePath?.style.removeProperty('stroke')
+    const fades = activity.fades
+    activity.fades = []
+    fades.forEach((fade) => fade.cancel())
+    renderedEdgePath(edgeId).style.removeProperty('stroke')
+    glowFor(edgeId)?.style.removeProperty('stroke')
   }
   edgeActivity.clear()
 }
@@ -45,13 +64,17 @@ function pathForCss(pathData: string): string {
 }
 
 function beginActivity(edgePath: SVGPathElement, edge: Edge): symbol {
-  const activity = edgeActivity.get(edge.id) ?? { active: new Set<symbol>() }
-  activity.fade?.cancel()
-  activity.fade = undefined
+  const activity = edgeActivity.get(edge.id) ?? { active: new Set<symbol>(), fades: [] }
+  const fades = activity.fades
+  activity.fades = []
+  fades.forEach((fade) => fade.cancel())
   const token = Symbol(edge.id)
   activity.active.add(token)
   edgeActivity.set(edge.id, activity)
-  edgePath.style.stroke = `var(${flowVariables[edge.kind]})`
+
+  const activeStroke = `var(${flowVariables[edge.kind]})`
+  edgePath.style.stroke = activeStroke
+  glowFor(edge.id)?.style.setProperty('stroke', activeStroke)
   return token
 }
 
@@ -59,22 +82,28 @@ function endActivity(edgePath: SVGPathElement, edge: Edge, token: symbol): void 
   const activity = edgeActivity.get(edge.id)
   if (!activity || !activity.active.delete(token) || activity.active.size > 0) return
 
-  const fade = edgePath.animate([{ stroke: `var(${flowVariables[edge.kind]})` }, { stroke: 'var(--rule)' }], {
-    duration: FADE_DURATION,
-    easing: FADE_EASING,
-    fill: 'forwards',
+  const glow = glowFor(edge.id)
+  const frames = [{ stroke: `var(${flowVariables[edge.kind]})` }, { stroke: `var(${idleTokens[edge.kind]})` }]
+
+  // Track both paths so the inline stroke clears only when the last animation
+  // settles, and so a later begin/cancel can tear the pair down together.
+  const release = (animation: Animation) => {
+    const index = activity.fades.indexOf(animation)
+    if (index === -1) return
+    activity.fades.splice(index, 1)
+    if (activity.fades.length === 0) {
+      edgePath.style.removeProperty('stroke')
+      glow?.style.removeProperty('stroke')
+      if (activity.active.size === 0) edgeActivity.delete(edge.id)
+    }
+  }
+
+  [edgePath, glow].filter((path): path is SVGPathElement => path !== null).forEach((path) => {
+    const fade = path.animate(frames, { duration: FADE_DURATION, easing: FADE_EASING, fill: 'forwards' })
+    fade.onfinish = () => release(fade)
+    fade.oncancel = () => release(fade)
+    activity.fades.push(fade)
   })
-  activity.fade = fade
-  const clearFade = () => {
-    if (activity.fade !== fade) return
-    activity.fade = undefined
-    edgePath.style.stroke = ''
-    if (activity.active.size === 0) edgeActivity.delete(edge.id)
-  }
-  fade.onfinish = clearFade
-  fade.oncancel = () => {
-    if (activity.fade === fade) activity.fade = undefined
-  }
 }
 
 /** Start one cancellable packet lifecycle while keeping the Promise<void> API. */

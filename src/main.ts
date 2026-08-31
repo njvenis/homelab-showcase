@@ -23,6 +23,7 @@ const legendEntries = [
   { variable: '--flow-infer', label: 'Inference', meaning: 'model work' },
   { variable: '--flow-health', label: 'Health', meaning: 'checks and telemetry' },
   { variable: '--flow-egress', label: 'Egress', meaning: 'outbound delivery' },
+  { variable: '--flow-network', label: 'Network', meaning: 'peer and inbound links' },
 ] as const
 
 function esc(text: string): string {
@@ -78,10 +79,14 @@ function renderTopology(stageLayout: StageLayout): string {
   const edgeEls = topology.edges.map((edge) => {
     const from = nodeRects.get(edge.from)!
     const to = nodeRects.get(edge.to)!
+    const d = edgePath(from, to, stageLayout)
     const markers = edge.bidirectional
       ? 'marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"'
       : 'marker-end="url(#arrowhead)"'
-    return `<path class="edge" id="${esc(edge.id)}" d="${edgePath(from, to, stageLayout)}" ${markers}/>`
+    return (
+      `<path class="edge-glow edge--${esc(edge.kind)}" data-edge-id="${esc(edge.id)}" d="${d}" aria-hidden="true" pointer-events="none"/>` +
+      `<path class="edge edge--${esc(edge.kind)}" id="${esc(edge.id)}" d="${d}" ${markers}/>`
+    )
   })
 
   const nodeEls = topology.zones.flatMap((zone) => {
@@ -92,7 +97,8 @@ function renderTopology(stageLayout: StageLayout): string {
       const transitionalClass = node.transitional ? ' node--transitional' : ''
       const zoneLabel = topology.zones.find((candidate) => candidate.id === node.zone)?.label ?? node.zone
       return (
-        `<g class="node-control" data-node-id="${esc(node.id)}" role="button" tabindex="0" focusable="true" aria-label="Inspect ${esc(node.label)} in ${esc(zoneLabel)}">` +
+        `<g class="node-control node--${node.kind}" data-node-id="${esc(node.id)}" data-node-kind="${esc(node.kind)}" role="button" tabindex="0" focusable="true" aria-label="Inspect ${esc(node.label)} in ${esc(zoneLabel)}">` +
+        `<rect class="node-accent" x="${rect.x.toFixed(1)}" y="${rect.y.toFixed(1)}" width="3" height="${NODE_HEIGHT}" data-node-kind="${esc(node.kind)}" aria-hidden="true" style="pointer-events:none"/>` +
         `<rect class="node-box${transitionalClass}" x="${rect.x.toFixed(1)}" y="${rect.y.toFixed(1)}" width="${rect.width.toFixed(1)}" height="${NODE_HEIGHT}" rx="${NODE_RX}"/>` +
         `<text class="node-label" x="${centerX.toFixed(1)}" y="${(centerY + 4).toFixed(1)}">${esc(node.label)}</text>` +
         '</g>'
@@ -113,8 +119,7 @@ function renderScenarioRail(): string {
   return (
     '<nav class="scenario-rail" aria-labelledby="scenario-title">' +
     '<div class="scenario-rail__intro">' +
-    '<span class="section-kicker">SCRIPTED FLOWS</span>' +
-    '<h2 id="scenario-title">Follow a scenario</h2>' +
+    '<h2 id="scenario-title">Scripted flows</h2>' +
     '<p>Start a real path through the stack.</p>' +
     '</div>' +
     `<div class="scenario-buttons">${buttons.join('')}</div>` +
@@ -124,11 +129,11 @@ function renderScenarioRail(): string {
 
 function renderLegend(): string {
   const entries = legendEntries.map(({ variable, label, meaning }) => (
-    `<li class="legend-entry"><span class="legend-swatch" style="--legend-flow: var(${variable})" aria-hidden="true"></span><span><strong>${label}</strong><span class="legend-meaning">${meaning}</span></span></li>`
+    `<li class="legend-entry"><span class="legend-swatch legend-swatch--dash" style="--legend-flow: var(${variable})" aria-hidden="true"></span><span><strong>${label}</strong><span class="legend-meaning">${meaning}</span></span></li>`
   ))
   return (
     '<section class="flow-legend" aria-labelledby="legend-title">' +
-    '<div class="flow-legend__heading"><span class="section-kicker">FLOW KEY</span><h2 id="legend-title">What the lines mean</h2></div>' +
+    '<div class="flow-legend__heading"><h2 id="legend-title">Flow key</h2></div>' +
     `<ul>${entries.join('')}</ul>` +
     '</section>'
   )
@@ -142,7 +147,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML =
   renderTopology(layout) +
   '<div class="canvas-dimmer" id="canvas-dimmer" aria-hidden="true" hidden></div>' +
   '<aside class="inspector" id="node-inspector" role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="inspector-title" aria-describedby="inspector-detail" hidden>' +
-  '<div class="inspector__topline"><span class="section-kicker">NODE INSPECTOR</span><button class="inspector__close" id="inspector-close" type="button" aria-label="Close node inspector">Close</button></div>' +
+  '<div class="inspector__topline"><button class="inspector__close" id="inspector-close" type="button" aria-label="Close node inspector">Close</button></div>' +
   '<h2 id="inspector-title"></h2>' +
   '<div class="inspector__status" id="inspector-status" hidden>TRANSITIONAL NODE</div>' +
   '<dl class="inspector__facts">' +
@@ -212,13 +217,19 @@ function refreshTopology(stageWidth: number): void {
   for (const nextEdge of nextSvg.querySelectorAll<SVGPathElement>('path.edge')) {
     renderedSvg.getElementById(nextEdge.id)?.setAttribute('d', nextEdge.getAttribute('d')!)
   }
+  for (const nextGlow of nextSvg.querySelectorAll<SVGPathElement>('path.edge-glow')) {
+    renderedSvg.querySelector(`.edge-glow[data-edge-id="${nextGlow.dataset.edgeId}"]`)?.setAttribute('d', nextGlow.getAttribute('d')!)
+  }
   for (const nextNode of nextSvg.querySelectorAll<SVGGElement>('.node-control')) {
     const node = renderedSvg.querySelector<SVGGElement>(`.node-control[data-node-id="${nextNode.dataset.nodeId}"]`)
-    const nextRect = nextNode.querySelector<SVGRectElement>('rect')
+    const nextBox = nextNode.querySelector<SVGRectElement>('rect.node-box')
+    const nextAccent = nextNode.querySelector<SVGRectElement>('rect.node-accent')
     const nextText = nextNode.querySelector<SVGTextElement>('text')
-    const rect = node?.querySelector<SVGRectElement>('rect')
+    const box = node?.querySelector<SVGRectElement>('rect.node-box')
+    const accent = node?.querySelector<SVGRectElement>('rect.node-accent')
     const text = node?.querySelector<SVGTextElement>('text')
-    if (rect && nextRect) for (const attribute of ['x', 'y', 'width', 'height']) rect.setAttribute(attribute, nextRect.getAttribute(attribute)!)
+    if (box && nextBox) for (const attribute of ['x', 'y', 'width', 'height']) box.setAttribute(attribute, nextBox.getAttribute(attribute)!)
+    if (accent && nextAccent) for (const attribute of ['x', 'y']) accent.setAttribute(attribute, nextAccent.getAttribute(attribute)!)
     if (text && nextText) for (const attribute of ['x', 'y']) text.setAttribute(attribute, nextText.getAttribute(attribute)!)
   }
   indexRenderedTopology()
