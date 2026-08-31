@@ -1,6 +1,12 @@
 import { scenarios, topology } from './data/load.ts'
 import { animatePacket, resetPacketActivity, type PacketHandle } from './packet.ts'
-import type { Hop, Scenario } from './types.ts'
+import type { Edge, Hop, Scenario } from './types.ts'
+
+export type Arrival = {
+  nodeId: string
+  flowKind: Edge['kind']
+  sequence: number
+}
 
 export type ScenarioState = Readonly<{
   scenarioId: string | null
@@ -9,6 +15,7 @@ export type ScenarioState = Readonly<{
   currentHop: number | null
   completedHops: number
   totalHops: number
+  arrival: Arrival | null
 }>
 
 export type ScenarioListener = (state: ScenarioState) => void
@@ -34,6 +41,7 @@ type ActiveRun = {
 
 const edgesById = new Map(topology.edges.map((edge) => [edge.id, edge]))
 const listeners = new Set<ScenarioListener>()
+let sequenceCounter = 0
 let state: ScenarioState = {
   scenarioId: null,
   running: false,
@@ -41,6 +49,7 @@ let state: ScenarioState = {
   currentHop: null,
   completedHops: 0,
   totalHops: 0,
+  arrival: null,
 }
 let activeRun: ActiveRun | undefined
 
@@ -75,6 +84,7 @@ function idleState(): ScenarioState {
     currentHop: null,
     completedHops: 0,
     totalHops: 0,
+    arrival: null,
   }
 }
 
@@ -89,6 +99,7 @@ function finish(run: ActiveRun): void {
     currentHop: null,
     completedHops: run.scenario.hops.length,
     totalHops: run.scenario.hops.length,
+    arrival: null,
   })
 }
 
@@ -113,10 +124,20 @@ function launch(run: ActiveRun, scheduled: ScheduledHop): void {
     if (activeRun !== run) return
     const packetIndex = run.packets.indexOf(activePacket)
     if (packetIndex !== -1) run.packets.splice(packetIndex, 1)
+    // Resolve the destination from the topology edge carrying this hop: a
+    // reverse hop lands on edge.from, a forward hop on edge.to. Publish the
+    // arrival alongside the completedHops tick so subscribers observe the
+    // destination in the very same state change that marks the hop done.
+    const arrival: Arrival = {
+      nodeId: scheduled.hop.reverse ? edge.from : edge.to,
+      flowKind: edge.kind,
+      sequence: ++sequenceCounter,
+    }
     setState({
       ...state,
       currentHop: run.packets.length ? run.packets[run.packets.length - 1].index : null,
       completedHops: state.completedHops + 1,
+      arrival,
     })
     maybeFinish(run)
   })
@@ -173,6 +194,7 @@ export function play(id: string): void {
     currentHop: null,
     completedHops: 0,
     totalHops: scenario.hops.length,
+    arrival: null,
   })
   tick(run)
 }

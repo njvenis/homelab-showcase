@@ -9,7 +9,8 @@ This implements runbook Step 6, Design direction, and the v2 “Lit” departure
 - Correct network packet colour to use `--flow-network`.
 - Add kind-colour presence to nodes while retaining substrate fill and the transitional dash treatment.
 - Add one restrained two-hue radial stage bloom, with no dot grid or vignette.
-- Carry forward the phase-9 idle tour, arrival pulses, progress treatment, and reduced-motion behavior unchanged; the tour must stop at the defined interaction, completion, visibility, and reduced-motion boundaries.
+- Add the defined idle tour: start 2500ms after load, play scenarios in `scenarios.json` order with 3000ms rests, loop indefinitely, and stop permanently for the session after any user interaction; never start under reduced motion.
+- Add 400ms destination-border arrival pulses from packet completion, restarting concurrent pulses; under reduced motion use a discrete colour step with no width animation. Add elapsed-time running progress on the scenario button, stepping per hop under reduced motion.
 - Expand the legend to six entries, including network, and render swatches as glowing lit dashes.
 - Remove the `.section-kicker` treatment, folding meaningful kicker information into headings and deleting redundant kickers.
 - Delete `src/counter.ts`.
@@ -31,6 +32,6 @@ This implements runbook Step 6, Design direction, and the v2 “Lit” departure
 - Reuses the existing direct SVG renderer, scenario engine, Web Animations API, CSS custom properties, and topology/scenario JSON. No new dependencies, backend, or framework is introduced.
 - Afterward a reviewer should see a permanently lit six-kind topology, brighter in-flight edges, kind-tinted nodes, a barely perceptible stage bloom, glowing dash legend swatches, the existing tour/pulse/progress behavior, no uppercase tracked kickers, and no accessibility regression.
 
-## Planning Assumption
+## Source of Truth
 
-`phase-9-polish-prompts.md` is not present in the repository or reachable history. This proposal treats the v2 direction and verification prompt as authoritative for the carried-forward behavior: the idle tour runs only while the page is untouched, stops on user interaction, scenario completion, visibility loss, or reduced-motion preference, and reduced motion disables the tour/travel while retaining understandable colour-step pulses and progress.
+The detailed tour, arrival-pulse, progress, and reduced-motion contract is defined in `docs/v2-lit.md` items 5–7 and its verification prompt. No separate phase-9 prompt is required.

@@ -42,6 +42,22 @@ export type PacketHandle = {
   cancel: () => void
 }
 
+// After edge geometry is rebuilt (resize/re-layout), the path strings change
+// but packets keep running their own offset animation. Re-read each live path
+// and refresh the packet's offset-path so it tracks the new geometry, leaving
+// the running offset-distance/animation untouched. Skips silently when a path
+// is gone so a mid-transient call never throws.
+export function refreshPacketPaths(): void {
+  document.querySelectorAll<SVGCircleElement>('circle.packet[data-edge-id]').forEach((packet) => {
+    const edgeId = packet.getAttribute('data-edge-id')
+    if (!edgeId) return
+    const path = [...document.querySelectorAll<SVGPathElement>('path.edge')].find((candidate) => candidate.id === edgeId)
+    const d = path?.getAttribute('d')
+    if (!d) return
+    packet.style.setProperty('offset-path', pathForCss(d))
+  })
+}
+
 /** Cancel packet-owned visual residue when a scenario resets the diagram. */
 export function resetPacketActivity(): void {
   document.querySelectorAll<SVGCircleElement>('circle.packet').forEach((packet) => {
@@ -126,6 +142,7 @@ function animatePacketHandle(
   packet.classList.add('packet')
   packet.setAttribute('r', '5')
   packet.setAttribute('aria-hidden', 'true')
+  packet.setAttribute('data-edge-id', edge.id)
   packet.style.setProperty('--packet-flow', flow)
   packet.style.setProperty('offset-path', pathForCss(pathData))
   packet.style.setProperty('offset-distance', startDistance)

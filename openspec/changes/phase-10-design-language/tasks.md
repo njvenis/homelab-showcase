@@ -10,8 +10,8 @@
 
 ## 3. Tour, arrival, and progress behavior
 
-- [ ] 3.1 Carry the existing phase-9 idle-tour timing and configured stops into the current page lifecycle, stopping on visitor interaction, scenario start, inspector open, document hidden, final stop, or reduced-motion enablement. Verify an untouched visible page tours, each boundary stops it, and reduced motion prevents or immediately cancels it.
-- [ ] 3.2 Preserve arrival pulses, scenario captions, and progress updates; use instantaneous kind-colour arrival steps instead of travel/scale/opacity animation under reduced motion. Verify normal motion shows arrivals and progress, reduced motion shows no travelling packets but continues captions, edge steps, pulses-as-colour, and completion state.
+- [x] 3.1 Implement the exact idle tour from `docs/v2-lit.md`: 2500ms initial delay, `scenarios.json` order, 3000ms rest, indefinite looping, and permanent session stop on scenario-button click, node click, keypress, or play control; never start under reduced motion. Verify each boundary and that tour-owned playback cancels without disabling manual play.
+- [x] 3.2 Drive 400ms 1.5 → 3 → 1.5 destination-border arrival pulses from packet completion, restart concurrent pulses, and implement the running button's 2px elapsed-time progress bar from `max(at + duration)`; reset on stop and step per hop under reduced motion. Verify normal/reduced motion arrival, caption, progress, and completion behavior.
 
 ## 4. Legend, headings, and cleanup
 

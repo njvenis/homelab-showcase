@@ -1,8 +1,8 @@
 import './style.css'
 import { scenarios, topology } from './data/load.ts'
 import { edgePath, getNodeRects, layout, NODE_HEIGHT, selectLayout, type NodeRect, type StageLayout } from './layout.ts'
-import { animatePacket, type PacketHandle } from './packet.ts'
-import { play, subscribe } from './scenario.ts'
+import { animatePacket, refreshPacketPaths, type PacketHandle } from './packet.ts'
+import { getState, play, stop, subscribe, type Arrival } from './scenario.ts'
 import type { FlowKind } from './types.ts'
 
 const NODE_RX = 8
@@ -113,7 +113,8 @@ function renderScenarioRail(): string {
   const buttons = scenarios.map((scenario) => (
     `<button class="scenario-button" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario">` +
     `<span class="scenario-button__name">${esc(scenario.name)}</span>` +
-    `<span class="scenario-button__status" aria-hidden="true" hidden>Running</span>` +
+    `<span class="scenario-button__progress" aria-hidden="true"></span>` +
+    `<span class="scenario-button__status" hidden>Running</span>` +
     '</button>'
   ))
   return (
@@ -157,14 +158,17 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML =
   '<p class="inspector__detail" id="inspector-detail"></p>' +
   '</aside>' +
   '</div>' +
-  '<p class="scenario-caption" id="scenario-caption" aria-live="polite" aria-atomic="true" hidden></p>' +
-  renderLegend() +
+'<p class="scenario-caption" id="scenario-caption" aria-live="polite" aria-atomic="true" hidden></p>' +
+   '<p class="sr-only" id="scenario-arrival" aria-live="polite"></p>' +
+   renderLegend() +
   '</div>'
 
 const caption = document.querySelector<HTMLParagraphElement>('#scenario-caption')!
+const arrivalLive = document.querySelector<HTMLParagraphElement>('#scenario-arrival')!
 const scenarioButtons = new Map(
   [...document.querySelectorAll<HTMLButtonElement>('[data-scenario-id]')].map((button) => [button.dataset.scenarioId!, button]),
 )
+const scenarioNameById = new Map(scenarios.map((scenario) => [scenario.id, scenario.name]))
 const stage = document.querySelector<HTMLDivElement>('#topology-stage')!
 let renderedSvg = stage.querySelector<SVGSVGElement>('svg')!
 const renderedEdges = new Map<string, SVGPathElement>()
@@ -236,6 +240,8 @@ function refreshTopology(stageWidth: number): void {
   if (selectedNodeId) nodeControls.get(selectedNodeId)?.setAttribute('data-selected', 'true')
   if (invokingNode?.dataset.nodeId) invokingNode = nodeControls.get(invokingNode.dataset.nodeId) ?? null
   if (!inspector.hidden) renderedSvg.setAttribute('aria-hidden', 'true')
+  // Edge strings just changed during re-layout; refresh live packets' offset-path to track them.
+  refreshPacketPaths()
 }
 
 indexRenderedTopology()
@@ -341,16 +347,320 @@ const resizeObserver = new ResizeObserver(([entry]) => {
 })
 resizeObserver.observe(stage)
 
-subscribe(({ caption: text, scenarioId, running }) => {
-  caption.textContent = text ?? ''
-  caption.hidden = text === null
+// ---- Running progress ----
+// Total duration is derivable from the hop array (max of at + duration); no
+// dedicated per-scenario duration state is kept. Progress resets on stop.
+function scenarioTotalDuration(scenarioId: string): number {
+  const scenario = scenarios.find((candidate) => candidate.id === scenarioId)
+  if (!scenario) return 0
+  return Math.max(0, ...scenario.hops.map((hop) => hop.at + hop.duration))
+}
+
+const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+let progressRaf: number | undefined
+let progressId: string | null = null
+let progressStart = 0
+
+// A single RAF loop animates the smooth bar for the running scenario, keyed by
+// progressId. Cancelling leaves progressId intact so resuming after a reduced
+// toggle rebuilds the same loop instead of spawning a second one.
+function cancelRaf(): void {
+  if (progressRaf !== undefined) {
+    cancelAnimationFrame(progressRaf)
+    progressRaf = undefined
+  }
+}
+
+// Point the loop at `id`, reusing its existing start unless this is a resume
+// from a held reduced marker — in which case shift the start back so the smooth
+// bar meets the discrete completedHops fraction rather than jumping from zero.
+function settleRafFor(id: string): void {
+  const reconnecting = progressRaf === undefined && progressId === id
+  if (progressId !== id || reconnecting) {
+    progressId = id
+    const { scenarioId, running, completedHops, totalHops } = getState()
+    const fraction = scenarioId === id && running && totalHops > 0
+      ? Math.min(1, completedHops / totalHops)
+      : 0
+    progressStart = performance.now() - fraction * scenarioTotalDuration(id)
+  }
+  if (progressRaf === undefined) progressRaf = requestAnimationFrame(tickProgress)
+}
+
+function tickProgress(): void {
+  if (progressId === null) return
+  const total = scenarioTotalDuration(progressId)
+  const elapsed = Math.min(Math.max(0, performance.now() - progressStart), total)
+  const button = scenarioButtons.get(progressId)
+  if (button && total > 0) {
+    button.style.setProperty('--scenario-progress', `${(elapsed / total) * 100}%`)
+    announceStatus(progressId, Math.round(Math.min(1, elapsed / total) * 100))
+  }
+  progressRaf = requestAnimationFrame(tickProgress)
+}
+
+// Accessible "Running — N%" status text, keyed per button by integer percent so
+// it updates only when the rounded percentage actually changes: coalescing the
+// continuous RAF into discrete announcements (including the initial 0 and the
+// terminal 100) rather than spamming assistive tech every frame. Cleared for
+// buttons that leave the active scenario.
+let lastStatusPct = new Map<string, number>()
+
+function statusElement(id: string): HTMLElement | undefined {
+  return scenarioButtons.get(id)?.querySelector<HTMLElement>('.scenario-button__status') ?? undefined
+}
+
+function announceStatus(id: string, intPct: number): void {
+  const status = statusElement(id)
+  if (status && lastStatusPct.get(id) !== intPct) {
+    lastStatusPct.set(id, intPct)
+    status.textContent = `Running — ${intPct}%`
+  }
+}
+
+function forgetStatus(id: string): void {
+  if (lastStatusPct.delete(id)) statusElement(id)?.removeAttribute('data-pct')
+}
+
+// Render caption, running indicator, accessible state, and per-button progress
+// together on every state change (initial idle included). The active scenario's
+// button is the sole owner/canceler of the single RAF; other buttons never fill
+// or touch it. Terminal completed holds 100% until the next run/stop.
+function renderProgress(): void {
+  const { scenarioId, running, totalHops, completedHops } = getState()
+  const terminal = scenarioId !== null && !running && totalHops > 0 && completedHops === totalHops
+
   scenarioButtons.forEach((button, id) => {
-    const isRunning = running && scenarioId === id
-    button.classList.toggle('scenario-button--running', isRunning)
-    button.toggleAttribute('data-running', isRunning)
-    if (isRunning) button.setAttribute('aria-current', 'true')
-    else button.removeAttribute('aria-current')
+    const active = scenarioId === id
+    const playing = active && running
+    const name = scenarioNameById.get(id) ?? ''
     const status = button.querySelector<HTMLElement>('.scenario-button__status')
-    if (status) status.hidden = !isRunning
+
+    button.classList.toggle('scenario-button--running', playing)
+    button.toggleAttribute('data-running', playing)
+    button.setAttribute('aria-pressed', String(playing))
+    button.setAttribute('aria-label', playing ? `Playing ${name} scenario` : `Play ${name} scenario`)
+
+    // Visible while this button owns the current run (running or just completed);
+    // hidden for every other button so only the active one is announced.
+    if (status) status.hidden = !active
+    if (!active) {
+      forgetStatus(id)
+      if (scenarioId === null) cancelRaf()
+      button.style.removeProperty('--scenario-progress')
+      return
+    }
+
+    // Defensive: an active owner implies a real scenarioId.
+    if (scenarioId === null) {
+      cancelRaf()
+      button.style.removeProperty('--scenario-progress')
+      return
+    }
+
+    if (terminal) {
+      cancelRaf()
+      button.style.setProperty('--scenario-progress', '100%')
+      announceStatus(id, 100)
+      return
+    }
+
+    if (reducedQuery.matches) {
+      cancelRaf()
+      const fraction = totalHops > 0 ? Math.min(1, completedHops / totalHops) : 0
+      button.style.setProperty('--scenario-progress', `${fraction * 100}%`)
+      announceStatus(id, Math.round(fraction * 100))
+      return
+    }
+
+    // Smooth bar: settle/resume the single owned RAF. TickProgress keeps the
+    // accessible status in step, coalesced by integer percent.
+    announceStatus(id, 0)
+    settleRafFor(id)
   })
+}
+
+// Caption reflects the engine state on every change, including initial idle.
+subscribe(() => {
+  caption.textContent = getState().caption ?? ''
+  caption.hidden = getState().caption === null
+  renderProgress()
 })
+
+// ---- Arrival pulses ----
+// The engine publishes the completion destination; we pulse that node's border
+// in the packet's flow colour. WAAPI owns each pulse's lifetime — no timers.
+const ARRIVAL_DURATION = 400
+const ARRIVAL_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+let flowColors: Partial<Record<FlowKind, string>> = {}
+let ruleStroke = ''
+// Per-node pulse bookkeeping. Storing the triggering arrival lets a motion
+// toggle re-render the same pulse in whatever mode is now active.
+const activePulses = new Map<string, { animation: Animation; arrival: Arrival }>()
+
+function flowColour(kind: FlowKind): string {
+  if (!ruleStroke) ruleStroke = getComputedStyle(document.documentElement).getPropertyValue('--rule').trim()
+  return flowColors[kind] ??= getComputedStyle(document.documentElement).getPropertyValue(`--flow-${kind}`).trim()
+}
+
+// Each new arrival cancels and restarts the destination's pulse so concurrent
+// arrivals never stack. Normal easing draws a border-width trip; reduced motion
+// holds the flow colour at fixed width briefly, then fades to the rule stroke.
+function emitArrivalPulse(arrival: Arrival): void {
+  const box = nodeControls.get(arrival.nodeId)?.querySelector<SVGRectElement>('rect.node-box')
+  if (!box) return
+  const colour = flowColour(arrival.flowKind)
+  activePulses.get(arrival.nodeId)?.animation.cancel()
+
+  const release = (animation: Animation): void => {
+    if (activePulses.get(arrival.nodeId)?.animation === animation) {
+      activePulses.delete(arrival.nodeId)
+      box.style.removeProperty('stroke')
+      box.style.removeProperty('stroke-width')
+    }
+  }
+
+  let animation: Animation
+  if (reducedQuery.matches) {
+    box.style.setProperty('stroke', colour)
+    const hold = 400
+    const fade = 200
+    animation = box.animate(
+      [
+        { stroke: colour, offset: 0 },
+        { stroke: colour, offset: hold / (hold + fade) },
+        { stroke: ruleStroke, offset: 1 },
+      ],
+      { duration: hold + fade, easing: 'ease', fill: 'backwards' }
+    )
+  } else {
+    animation = box.animate(
+      [
+        { strokeWidth: 1.5, stroke: colour },
+        { strokeWidth: 3, stroke: colour },
+        { strokeWidth: 1.5, stroke: colour },
+      ],
+      { duration: ARRIVAL_DURATION, easing: ARRIVAL_EASING, fill: 'backwards' }
+    )
+  }
+  animation.onfinish = () => release(animation)
+  animation.oncancel = () => release(animation)
+  activePulses.set(arrival.nodeId, { animation, arrival })
+}
+
+// A motion preference change must re-render whatever pulses are in flight in the
+// new mode: cancel each live pulse and re-issue it (normal <-> reduced), no timers.
+function reapplyActivePulses(): void {
+  if (activePulses.size === 0) return
+  const pending = [...activePulses.entries()]
+  for (const [, pulse] of pending) pulse.animation.cancel()
+  activePulses.clear()
+  for (const [, pulse] of pending) emitArrivalPulse(pulse.arrival)
+}
+
+// ---- Idle tour ----
+// Runs only when unbroken since load: 2500ms idle delay, scenarios.json order,
+// 3000ms rest between scenarios, looping indefinitely. tourScenarioId names the
+// scenario the tour owns; it is set only right before a tour play() and cleared
+// on completion/stop, so a manual/programmatic run (which closed the session)
+// never drives the rest-and-loop. Manual play stays available once the session
+// ends.
+const INITIAL_DELAY_MS = 2500
+const REST_MS = 3000
+let tourTimer: number | undefined
+let tourSessionOpen = true
+let tourIndex = 0
+let tourScenarioId: string | null = null
+
+function disarmTourTimer(): void {
+  if (tourTimer !== undefined) {
+    window.clearTimeout(tourTimer)
+    tourTimer = undefined
+  }
+}
+
+// True only while the tour itself is running — i.e. the active scenario is the
+// one the tour handed out. Manual/programmatic runs do not count, so stop and
+// reduced-motion cancellation only ever interrupt the tour's own playback.
+function isTourOwnedRunning(): boolean {
+  return tourScenarioId !== null && getState().running && getState().scenarioId === tourScenarioId
+}
+
+// A genuine interaction ends the session tour for the remainder of the session
+// and cancels any tour-owned playback. Manual play still follows from the same
+// control (a button click plays); programmatic tour play fires no event here.
+function onUserInteraction(): void {
+  tourSessionOpen = false
+  disarmTourTimer()
+  if (isTourOwnedRunning()) stop()
+}
+
+function armInitialDelay(): void {
+  disarmTourTimer()
+  if (reducedQuery.matches) return
+  tourTimer = window.setTimeout(() => {
+    tourTimer = undefined
+    tourScenarioId = scenarios[tourIndex].id
+    play(scenarios[tourIndex].id)
+  }, INITIAL_DELAY_MS)
+}
+
+// Publishes arrivals and advances the tour: a tour-owned scenario completion
+// (session still open) re-arms the 3000ms rest and loops in scenarios order;
+// manual completion does not. On idle/stop lingering pulses reconcile to CSS.
+subscribe(({ arrival, scenarioId, running }) => {
+  if (arrival) {
+    emitArrivalPulse(arrival)
+    const label = nodeById.get(arrival.nodeId)?.label ?? arrival.nodeId
+    arrivalLive.textContent = `${label} — ${kindLabels[arrival.flowKind]} flow`
+  }
+
+  if (!running && scenarioId === null) {
+    tourScenarioId = null
+    arrivalLive.textContent = ''
+    for (const pulse of activePulses.values()) pulse.animation.cancel()
+    activePulses.clear()
+    nodeControls.forEach((control) => {
+      control.querySelector<SVGRectElement>('rect.node-box')?.style.removeProperty('stroke')
+      control.querySelector<SVGRectElement>('rect.node-box')?.style.removeProperty('stroke-width')
+    })
+    return
+  }
+
+  // Advance the rest-and-loop only for a tour-owned terminal scenario, guarded by
+  // interaction-safety (session open) and reduced motion, which blocks the tour.
+  if (!running && scenarioId !== null && tourScenarioId === scenarioId && tourSessionOpen && !reducedQuery.matches) {
+    tourScenarioId = null
+    disarmTourTimer()
+    tourTimer = window.setTimeout(() => {
+      tourTimer = undefined
+      tourIndex = (tourIndex + 1) % scenarios.length
+      tourScenarioId = scenarios[tourIndex].id
+      play(scenarios[tourIndex].id)
+    }, REST_MS)
+  }
+})
+
+// Reduced motion blocks the tour entirely: never start it, cancel an in-flight
+// tour-owned playback immediately, and re-arm a fresh idle delay when the
+// preference lifts and the session remains open. Pulses and progress reconcile to
+// the new mode on the same change.
+reducedQuery.addEventListener('change', (event) => {
+  renderProgress()
+  reapplyActivePulses()
+  if (event.matches) {
+    disarmTourTimer()
+    if (isTourOwnedRunning()) stop()
+  } else if (tourSessionOpen) {
+    armInitialDelay()
+  }
+})
+
+// Capture gestures/keys as session-ending before other handlers run, so a future
+// play control also counts as interaction. window-level capture runs ahead of the
+// scenario-button click and node handlers registered earlier.
+window.addEventListener('pointerdown', onUserInteraction, true)
+window.addEventListener('keydown', onUserInteraction, true)
+window.addEventListener('click', onUserInteraction, true)
+
+armInitialDelay()

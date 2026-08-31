@@ -62,21 +62,27 @@ The diagram stage SHALL have one radial bloom behind the topology using the `--b
 - **WHEN** the visitor views the background behind the topology
 - **THEN** one restrained radial bloom combines the two dominant topology hues behind the diagram, without obscuring nodes, edges, labels, or focus indicators, and no dot grid or vignette is present
 
-### Requirement: Idle tour stops at interaction boundaries
+### Requirement: Idle tour plays until deliberate interaction
 
-The idle tour SHALL use the existing phase-9 idle-tour timing and stops, and SHALL not compete with deliberate interaction. It SHALL stop when the visitor interacts with the page, starts a scenario, opens the inspector, the document becomes hidden, the tour reaches its final configured stop, or reduced motion is enabled. It SHALL not start or resume while reduced motion is enabled.
+The idle tour SHALL wait 2500ms after load, play scenarios in `scenarios.json` order, wait 3000ms between scenarios, and loop indefinitely. Any user interaction—scenario button, node click, keypress, or play control—SHALL stop the tour permanently for the session. The tour SHALL never start when `prefers-reduced-motion: reduce` is enabled.
 
-#### Scenario: Untouched page starts the idle tour
+#### Scenario: Untouched page starts the idle tour after the defined delay
 
-- **GIVEN** the page is visible, reduced motion is not enabled, and the visitor has not interacted for the existing idle delay
-- **WHEN** the idle-tour delay elapses
-- **THEN** the tour advances through its configured stops using the existing scenario/edge presentation
+- **GIVEN** the page has loaded, reduced motion is not enabled, and the visitor has not interacted
+- **WHEN** 2500ms elapses
+- **THEN** the first scenario in `scenarios.json` starts through the existing scenario/edge presentation
 
-#### Scenario: Deliberate interaction stops the tour
+#### Scenario: The tour loops in scenario order
 
-- **GIVEN** the idle tour is running
-- **WHEN** the visitor clicks, presses a key, starts a scenario, opens the inspector, or the document becomes hidden
-- **THEN** the tour stops and does not restart until the existing idle conditions are satisfied again
+- **GIVEN** the idle tour is running and a scenario reaches completion
+- **WHEN** the 3000ms rest elapses
+- **THEN** the next scenario in `scenarios.json` order starts, and after the final scenario the tour returns to the first scenario
+
+#### Scenario: Deliberate interaction stops the tour permanently
+
+- **GIVEN** the idle tour is scheduled or running
+- **WHEN** the visitor clicks a scenario button or node, presses a key, or uses a play control
+- **THEN** the tour timer and tour-owned playback stop, and the tour does not restart for the remainder of the session
 
 #### Scenario: Reduced motion prevents the tour
 
@@ -84,27 +90,49 @@ The idle tour SHALL use the existing phase-9 idle-tour timing and stops, and SHA
 - **WHEN** the idle delay would elapse or the preference changes
 - **THEN** the tour does not start, or stops immediately if already running, and no travelling-packet presentation is shown
 
-### Requirement: Arrival pulses and progress remain understandable
+### Requirement: Arrival pulses identify packet completion
 
-Normal-motion arrival pulses SHALL identify the destination node when a packet arrives, and the progress treatment SHALL report the running scenario's progress through its scripted hops. Reduced motion SHALL replace arrival movement or opacity animation with an instantaneous kind-colour step while retaining progress and caption updates.
+When a packet reaches the end of its hop, the destination node's border SHALL pulse once in the packet's flow colour: stroke SHALL change from 1.5 to 3 to 1.5 over 400ms with `cubic-bezier(0.22, 1, 0.36, 1)`. The pulse SHALL be driven by the existing packet lifecycle completion without an additional timer. Concurrent arrivals at one node SHALL restart its current pulse rather than stack another pulse.
 
-#### Scenario: Normal motion shows arrival and progress
+#### Scenario: Normal motion shows a destination border pulse
 
 - **GIVEN** a scenario is running without reduced motion
-- **WHEN** each packet arrives at its destination and the scenario advances
-- **THEN** the destination receives the existing arrival pulse, the progress treatment advances deterministically, and the caption remains synchronized with the scripted flow
+- **WHEN** a packet reaches the end of its hop
+- **THEN** the destination node border changes 1.5 → 3 → 1.5 over 400ms in the packet's flow colour and the caption remains synchronized
 
-#### Scenario: Reduced motion uses colour-step arrivals
+#### Scenario: Concurrent arrivals restart one pulse
+
+- **GIVEN** a destination node is already pulsing
+- **WHEN** another packet arrives at that node
+- **THEN** the existing pulse restarts from its initial state rather than stacking animations
+
+#### Scenario: Reduced motion uses a discrete arrival colour step
 
 - **GIVEN** a scenario is running with reduced motion enabled
 - **WHEN** a hop arrives at its destination
-- **THEN** the destination communicates the arrival as an instantaneous kind-colour step with no scale or opacity animation, while progress and captions continue to update
+- **THEN** the destination border takes the packet's flow colour as a discrete state, holds it for 400ms, and fades it back without stroke-width animation
+
+### Requirement: Running progress uses elapsed scenario time
+
+The running scenario button SHALL carry a 2px bottom-edge progress bar in `--flow-control`, scaled by elapsed time over the scenario's total duration. Total duration SHALL be derived from the hop array as the maximum of `at + duration`; no additional scenario-duration state SHALL be added. Progress SHALL reset on stop and SHALL be the only progress indication used by the idle tour. Under reduced motion it SHALL step once per completed hop instead of animating continuously.
+
+#### Scenario: Normal motion advances elapsed progress
+
+- **GIVEN** a scenario is running without reduced motion
+- **WHEN** time advances through its derived total duration
+- **THEN** the running button's 2px bottom bar advances continuously from 0 to 100% in `--flow-control`
+
+#### Scenario: Reduced motion advances progress per hop
+
+- **GIVEN** a scenario is running with reduced motion enabled
+- **WHEN** each scripted hop completes
+- **THEN** the running button's progress advances discretely by the completed-hop fraction without continuous animation
 
 #### Scenario: Progress completes with the scenario
 
 - **GIVEN** a scenario has reached its final scripted hop
 - **WHEN** all active hops finish
-- **THEN** progress reports completion, the running state clears, and no stale progress or arrival pulse claims that the scenario is still active
+- **THEN** the bottom bar reaches completion, the running state clears, and no stale progress or arrival pulse claims that the scenario is still active
 
 ### Requirement: The legend previews all six edge kinds
 

@@ -205,6 +205,19 @@ body {
   text-transform: uppercase;
 }
 
+/* 2px bottom-edge progress bar driven by --scenario-progress (0–100%). Set
+   from main.ts while running; reset on stop. Reduced motion steps it per hop
+   rather than animating width continuously. */
+.scenario-button__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  width: var(--scenario-progress, 0%);
+  background-color: var(--flow-control);
+}
+
 .topology-stage {
   position: relative;
   isolation: isolate;
@@ -486,7 +499,7 @@ body {
 }
 
 .edge-marker {
-  fill: var(--rule);
+  fill: context-stroke;
 }
 
 .zone {

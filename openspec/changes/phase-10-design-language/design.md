@@ -2,7 +2,7 @@
 
 The site is a static Vite/TypeScript page that renders `topology.json` into direct SVG DOM, schedules synthetic scenario hops in `src/scenario.ts`, and currently treats `--rule` as the idle edge colour. `src/packet.ts` already owns reference-counted edge activity and the approximately 600ms fade-back; `src/main.ts` owns the SVG, rail, legend, and inspector markup. See proposal.md and `specs/design-language/spec.md` for the contract.
 
-The repository does not contain the referenced `phase-9-polish-prompts.md`; the carried-forward tour/pulse/progress boundary is therefore the explicit assumption recorded in proposal.md and this design.
+The exact tour, arrival-pulse, and progress behavior is now defined in `docs/v2-lit.md` items 5–7; no separate phase-9 prompt is required.
 
 ## Goals / Non-Goals
 
@@ -44,7 +44,11 @@ Use one stage-level pseudo-element or equivalent background layer with a single 
 
 ### Extend existing state for tour, arrivals, and progress
 
-Use the existing scenario subscription and packet lifecycle instead of a parallel scheduler. The idle-tour controller listens for pointer/keyboard interaction, scenario activation, inspector opening, `visibilitychange`, and `prefers-reduced-motion`; it clears its timer and stops on the first boundary, final configured tour stop, or reduced-motion enablement. Arrival pulses are driven by packet completion/destination data, and progress is derived from the existing completed-hop/total-hop state. Under reduced motion, CSS and a small preference boundary suppress travelling packets and tour execution while keeping timed edge steps, colour-step arrivals, captions, and progress available.
+Use the existing scenario subscription and packet lifecycle rather than a second hop scheduler. The idle-tour controller waits 2500ms after load, starts scenarios in `scenarios.json` order, waits 3000ms after each completion, loops, and permanently cancels itself on the first scenario-button click, node click, keypress, or play-control interaction. It never starts under reduced motion. A tour-owned scenario is cancelled when that permanent stop occurs; manual playback remains available.
+
+Drive arrival pulses from packet completion and the hop's resolved destination (normal `edge.to`, reverse `edge.from`). Animate the destination node border 1.5 → 3 → 1.5 for 400ms with the existing packet easing; use one animation per node so a concurrent arrival cancels/restarts the current pulse. Under reduced motion, animate only a 400ms colour hold/fade with fixed stroke width.
+
+Derive each scenario's total duration as `Math.max(...hops.map(({ at, duration }) => at + duration))`. Use one progress update loop only while a scenario is running to set a CSS custom property on its button from elapsed time / total duration; reset it on stop. Under reduced motion, set the property from `completedHops / totalHops` at subscription updates instead of continuously ticking. The progress bar is the tour's only progress indication.
 
 ### Make the legend and headings semantic
 
@@ -59,7 +63,7 @@ Use the current DOM, SVG, CSS custom properties, Web Animations API, and `prefer
 - **[Risk]** Duplicated paths could be mistaken for duplicate edges or receive pointer/focus semantics. **Mitigation:** keep glow paths aria-hidden and pointer-events none, retain one edge id/semantic record, and validate the generated SVG structure.
 - **[Risk]** Two simultaneous colour transitions could leave a stale glow after cancellation. **Mitigation:** keep one edge activity record per id, cancel the current fade when a token starts, and clear both paths only from the matching final fade callback.
 - **[Risk]** The bloom or tinted nodes could lower contrast or overpower labels. **Mitigation:** use the specified 6%/14% mixes, place the bloom behind the stage, inspect all text/focus states, and run Lighthouse plus contrast checks.
-- **[Risk]** The absent phase-9 source could hide an intended tour edge case. **Mitigation:** use the explicit stop boundaries recorded in proposal.md, preserve existing scenario controls and reduced-motion rules, and make the acceptance task report each stop condition separately.
+- **[Risk]** Tour playback and manual playback could interfere. **Mitigation:** tag the active tour scenario in the controller, cancel only the tour-owned handle on permanent interaction, and let manual scenario buttons continue to use the existing engine.
 - **[Risk]** Removing kickers could delete meaningful context. **Mitigation:** review every current `.section-kicker` occurrence and fold only informative text into its adjacent heading; delete redundant labels.
 
 ## Migration Plan
