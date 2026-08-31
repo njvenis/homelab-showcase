@@ -86,8 +86,6 @@ body {
 #app {
   box-sizing: border-box;
   width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
   scrollbar-color: var(--rule) var(--substrate);
 }
 
@@ -210,7 +208,6 @@ body {
 #app svg {
   display: block;
   width: 100%;
-  min-width: 760px;
   height: auto;
 }
 
@@ -401,6 +398,23 @@ body {
   .flow-legend ul {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+
+  .canvas-dimmer {
+    position: fixed;
+    inset: 0;
+  }
+
+  .inspector {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 55vh;
+    overflow-y: auto;
+    border-radius: 8px 8px 0 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -485,7 +499,4 @@ body {
     font-size: 1rem;
   }
 
-  #app svg {
-    min-width: 700px;
-  }
 }

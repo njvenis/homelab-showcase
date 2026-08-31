@@ -1,6 +1,6 @@
 import './style.css'
 import { scenarios, topology } from './data/load.ts'
-import { edgePath, getNodeRects, layout, NODE_HEIGHT, type NodeRect } from './layout.ts'
+import { edgePath, getNodeRects, layout, NODE_HEIGHT, selectLayout, type NodeRect, type StageLayout } from './layout.ts'
 import { animatePacket, type PacketHandle } from './packet.ts'
 import { play, subscribe } from './scenario.ts'
 import type { FlowKind } from './types.ts'
@@ -34,25 +34,22 @@ function esc(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function renderTopology(): string {
-  const { width, height } = layout.viewBox
+function renderTopology(stageLayout: StageLayout): string {
+  const { width, height } = stageLayout.viewBox
 
   const zoneEls = topology.zones.map((zone) => {
-    const r = layout.zones[zone.id as keyof typeof layout.zones]
+    const r = stageLayout.zones[zone.id]
     if (!r) throw new Error(`no layout for zone: ${zone.id}`)
-    const sub = zone.sub
-      ? `<text class="zone-sub" x="${r.x + r.padding}" y="${r.y + r.padding + 22}">${esc(zone.sub)}</text>`
-      : ''
     return (
-      `<rect class="zone" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="${ZONE_RX}"/>` +
-      `<text class="zone-label" x="${r.x + r.padding}" y="${r.y + r.padding}">${esc(zone.label)}</text>` +
-      sub
+      `<rect class="zone" data-zone-id="${esc(zone.id)}" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="${ZONE_RX}"/>` +
+      `<text class="zone-label" data-zone-label="${esc(zone.id)}" x="${r.x + r.padding}" y="${r.y + r.padding}">${esc(zone.label)}</text>` +
+      (zone.sub ? `<text class="zone-sub" data-zone-sub="${esc(zone.id)}" x="${r.x + r.padding}" y="${r.y + r.padding + 22}">${esc(zone.sub)}</text>` : '')
     )
   })
 
   const nodeRects = new Map<string, NodeRect>()
   topology.zones.forEach((zone) => {
-    for (const [id, rect] of getNodeRects(zone.id)) nodeRects.set(id, rect)
+    for (const [id, rect] of getNodeRects(zone.id, stageLayout)) nodeRects.set(id, rect)
   })
 
   const markerDefs = '<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><polygon class="edge-marker" points="0,0 9,5 0,10"/></marker></defs>'
@@ -63,7 +60,7 @@ function renderTopology(): string {
     const markers = edge.bidirectional
       ? 'marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"'
       : 'marker-end="url(#arrowhead)"'
-    return `<path class="edge" id="${esc(edge.id)}" d="${edgePath(from, to)}" ${markers}/>`
+    return `<path class="edge" id="${esc(edge.id)}" d="${edgePath(from, to, stageLayout)}" ${markers}/>`
   })
 
   const nodeEls = topology.zones.flatMap((zone) => {
@@ -121,7 +118,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML =
   '<p class="sr-only" id="topology-instructions">Topology nodes are interactive. Activate one to inspect its details.</p>' +
   renderScenarioRail() +
   '<div class="topology-stage" id="topology-stage">' +
-  renderTopology() +
+  renderTopology(layout) +
   '<div class="canvas-dimmer" id="canvas-dimmer" aria-hidden="true" hidden></div>' +
   '<aside class="inspector" id="node-inspector" role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="inspector-title" aria-describedby="inspector-detail" hidden>' +
   '<div class="inspector__topline"><span class="section-kicker">NODE INSPECTOR</span><button class="inspector__close" id="inspector-close" type="button" aria-label="Close node inspector">Close</button></div>' +
@@ -142,17 +139,13 @@ const caption = document.querySelector<HTMLParagraphElement>('#scenario-caption'
 const scenarioButtons = new Map(
   [...document.querySelectorAll<HTMLButtonElement>('[data-scenario-id]')].map((button) => [button.dataset.scenarioId!, button]),
 )
-const renderedSvg = document.querySelector<SVGSVGElement>('#app svg')!
-const renderedEdges = new Map(
-  [...renderedSvg.querySelectorAll<SVGPathElement>('path.edge')].map((path) => [path.id, path]),
-)
+const stage = document.querySelector<HTMLDivElement>('#topology-stage')!
+let renderedSvg = stage.querySelector<SVGSVGElement>('svg')!
+const renderedEdges = new Map<string, SVGPathElement>()
 const edgesById = new Map(topology.edges.map((edge) => [edge.id, edge]))
 const nodeById = new Map(topology.nodes.map((node) => [node.id, node]))
 const zoneById = new Map(topology.zones.map((zone) => [zone.id, zone]))
-const nodeControls = new Map(
-  [...renderedSvg.querySelectorAll<SVGGElement>('.node-control')].map((node) => [node.dataset.nodeId!, node]),
-)
-const stage = document.querySelector<HTMLDivElement>('#topology-stage')!
+const nodeControls = new Map<string, SVGGElement>()
 const dimmer = document.querySelector<HTMLDivElement>('#canvas-dimmer')!
 const inspector = document.querySelector<HTMLElement>('#node-inspector')!
 const closeInspectorButton = document.querySelector<HTMLButtonElement>('#inspector-close')!
@@ -163,6 +156,57 @@ const inspectorDetail = document.querySelector<HTMLParagraphElement>('#inspector
 const inspectorStatus = document.querySelector<HTMLElement>('#inspector-status')!
 let invokingNode: SVGGElement | null = null
 let selectedNodeId: string | null = null
+
+function indexRenderedTopology(): void {
+  renderedEdges.clear()
+  for (const path of renderedSvg.querySelectorAll<SVGPathElement>('path.edge')) renderedEdges.set(path.id, path)
+  nodeControls.clear()
+  for (const node of renderedSvg.querySelectorAll<SVGGElement>('.node-control')) {
+    if (node.dataset.nodeId) nodeControls.set(node.dataset.nodeId, node)
+  }
+}
+
+function refreshTopology(stageWidth: number): void {
+  const nextLayout = selectLayout(stageWidth)
+  const nextTemplate = document.createElement('template')
+  nextTemplate.innerHTML = renderTopology(nextLayout)
+  const nextSvg = nextTemplate.content.firstElementChild as SVGSVGElement
+  renderedSvg.setAttribute('viewBox', nextSvg.getAttribute('viewBox')!)
+
+  for (const nextZone of nextSvg.querySelectorAll<SVGRectElement>('[data-zone-id]')) {
+    const zone = renderedSvg.querySelector<SVGRectElement>(`[data-zone-id="${nextZone.dataset.zoneId}"]`)
+    if (!zone) continue
+    for (const attribute of ['x', 'y', 'width', 'height']) zone.setAttribute(attribute, nextZone.getAttribute(attribute)!)
+  }
+  for (const nextLabel of nextSvg.querySelectorAll<SVGTextElement>('[data-zone-label], [data-zone-sub]')) {
+    const selector = nextLabel.dataset.zoneLabel
+      ? `[data-zone-label="${nextLabel.dataset.zoneLabel}"]`
+      : `[data-zone-sub="${nextLabel.dataset.zoneSub}"]`
+    const label = renderedSvg.querySelector<SVGTextElement>(selector)
+    if (label) {
+      label.setAttribute('x', nextLabel.getAttribute('x')!)
+      label.setAttribute('y', nextLabel.getAttribute('y')!)
+    }
+  }
+  for (const nextEdge of nextSvg.querySelectorAll<SVGPathElement>('path.edge')) {
+    renderedSvg.getElementById(nextEdge.id)?.setAttribute('d', nextEdge.getAttribute('d')!)
+  }
+  for (const nextNode of nextSvg.querySelectorAll<SVGGElement>('.node-control')) {
+    const node = renderedSvg.querySelector<SVGGElement>(`.node-control[data-node-id="${nextNode.dataset.nodeId}"]`)
+    const nextRect = nextNode.querySelector<SVGRectElement>('rect')
+    const nextText = nextNode.querySelector<SVGTextElement>('text')
+    const rect = node?.querySelector<SVGRectElement>('rect')
+    const text = node?.querySelector<SVGTextElement>('text')
+    if (rect && nextRect) for (const attribute of ['x', 'y', 'width', 'height']) rect.setAttribute(attribute, nextRect.getAttribute(attribute)!)
+    if (text && nextText) for (const attribute of ['x', 'y']) text.setAttribute(attribute, nextText.getAttribute(attribute)!)
+  }
+  indexRenderedTopology()
+  if (selectedNodeId) nodeControls.get(selectedNodeId)?.setAttribute('data-selected', 'true')
+  if (invokingNode?.dataset.nodeId) invokingNode = nodeControls.get(invokingNode.dataset.nodeId) ?? null
+  if (!inspector.hidden) renderedSvg.setAttribute('aria-hidden', 'true')
+}
+
+indexRenderedTopology()
 
 declare global {
   interface Window {
@@ -221,13 +265,13 @@ function closeInspector(): void {
   target?.focus({ preventScroll: true })
 }
 
-renderedSvg.addEventListener('click', (event) => {
+stage.addEventListener('click', (event) => {
   if (!(event.target instanceof Element)) return
   const node = event.target.closest<SVGGElement>('.node-control')
   if (node?.dataset.nodeId) openInspector(node.dataset.nodeId, node)
 })
 
-renderedSvg.addEventListener('keydown', (event) => {
+stage.addEventListener('keydown', (event) => {
   if (!(event.target instanceof Element)) return
   const node = event.target.closest<SVGGElement>('.node-control')
   if (!node?.dataset.nodeId) return
@@ -254,6 +298,16 @@ inspector.addEventListener('keydown', (event) => {
     closeInspectorButton.focus({ preventScroll: true })
   }
 })
+
+let lastStageWidth = Math.round(stage.getBoundingClientRect().width)
+if (lastStageWidth > 0 && lastStageWidth < layout.viewBox.width) refreshTopology(lastStageWidth)
+const resizeObserver = new ResizeObserver(([entry]) => {
+  const width = Math.round(entry.contentRect.width)
+  if (width <= 0 || width === lastStageWidth) return
+  lastStageWidth = width
+  refreshTopology(width)
+})
+resizeObserver.observe(stage)
 
 subscribe(({ caption: text, scenarioId, running }) => {
   caption.textContent = text ?? ''
