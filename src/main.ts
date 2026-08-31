@@ -1,19 +1,12 @@
 import './style.css'
 import { topology } from './data/load.ts'
-import { layout, getNodePositions } from './layout.ts'
+import { edgePath, getNodeRects, layout, NODE_HEIGHT, type NodeRect } from './layout.ts'
 
-const NODE_HEIGHT = 36
 const NODE_RX = 8
 const ZONE_RX = 16
 
 function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
-function nodeWidth(label: string, zoneInner: number): number {
-  // ponytail: width estimated from char count, capped at the zone's inner width;
-  // upgrade to canvas measureText if labels visibly collide
-  return Math.min(label.length * 7.2 + 24, zoneInner)
 }
 
 function renderTopology(): string {
@@ -32,21 +25,35 @@ function renderTopology(): string {
     )
   })
 
+  const nodeRects = new Map<string, NodeRect>()
+  topology.zones.forEach((zone) => {
+    for (const [id, rect] of getNodeRects(zone.id)) nodeRects.set(id, rect)
+  })
+
+  const markerDefs = '<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><polygon class="edge-marker" points="0,0 9,5 0,10"/></marker></defs>'
+
+  const edgeEls = topology.edges.map((edge) => {
+    const from = nodeRects.get(edge.from)!
+    const to = nodeRects.get(edge.to)!
+    const markers = edge.bidirectional
+      ? 'marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"'
+      : 'marker-end="url(#arrowhead)"'
+    return `<path class="edge" id="${esc(edge.id)}" d="${edgePath(from, to)}" ${markers}/>`
+  })
+
   const nodeEls = topology.zones.flatMap((zone) => {
-    const r = layout.zones[zone.id as keyof typeof layout.zones]!
-    const positions = getNodePositions(zone.id)
-    const inner = r.width - r.padding * 2 - 8
     return topology.nodes.filter((node) => node.zone === zone.id).map((node) => {
-      const p = positions.get(node.id)!
-      const w = nodeWidth(node.label, inner)
+      const rect = nodeRects.get(node.id)!
+      const centerX = rect.x + rect.width / 2
+      const centerY = rect.y + rect.height / 2
       return (
-        `<rect class="node-box${node.transitional ? ' node--transitional' : ''}" x="${(p.x - w / 2).toFixed(1)}" y="${(p.y - NODE_HEIGHT / 2).toFixed(1)}" width="${w.toFixed(1)}" height="${NODE_HEIGHT}" rx="${NODE_RX}"/>` +
-        `<text class="node-label" x="${p.x}" y="${p.y + 4}">${esc(node.label)}</text>`
+        `<rect class="node-box${node.transitional ? ' node--transitional' : ''}" x="${rect.x.toFixed(1)}" y="${rect.y.toFixed(1)}" width="${rect.width.toFixed(1)}" height="${NODE_HEIGHT}" rx="${NODE_RX}"/>` +
+        `<text class="node-label" x="${centerX.toFixed(1)}" y="${(centerY + 4).toFixed(1)}">${esc(node.label)}</text>`
       )
     })
   })
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Homelab stack topology">${zoneEls.join('')}${nodeEls.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Homelab stack topology">${markerDefs}${zoneEls.join('')}${edgeEls.join('')}${nodeEls.join('')}</svg>`
 }
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = renderTopology()

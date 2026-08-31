@@ -48,6 +48,16 @@ body {
   height: auto;
 }
 
+.edge {
+  fill: none;
+  stroke: var(--rule);
+  stroke-width: 1.5;
+}
+
+.edge-marker {
+  fill: var(--rule);
+}
+
 .zone {
   fill: var(--surface);
   stroke: var(--rule);
