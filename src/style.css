@@ -91,6 +91,122 @@ body {
   scrollbar-color: var(--rule) var(--substrate);
 }
 
+.interaction-shell {
+  box-sizing: border-box;
+  width: min(100%, 1400px);
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1.25rem, 5vw, 4rem) 3.5rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.section-kicker {
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.scenario-rail {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 2.2fr);
+  gap: 1.5rem;
+  align-items: end;
+  padding: 0 0 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.scenario-rail__intro h2,
+.flow-legend__heading h2 {
+  margin: 0.35rem 0 0;
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+
+.scenario-rail__intro p {
+  margin: 0.45rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.scenario-buttons {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.scenario-button {
+  position: relative;
+  display: flex;
+  min-height: 3.25rem;
+  box-sizing: border-box;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.scenario-button:hover {
+  border-color: var(--ink-muted);
+}
+
+.scenario-button:focus-visible,
+.inspector__close:focus-visible {
+  outline: 3px solid var(--flow-control);
+  outline-offset: 3px;
+}
+
+.scenario-button--running {
+  border-color: var(--flow-control);
+  background: var(--substrate);
+  box-shadow: inset 3px 0 0 var(--flow-control);
+}
+
+.scenario-button__name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.scenario-button__status {
+  color: var(--flow-control);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topology-stage {
+  position: relative;
+  isolation: isolate;
+  margin-top: 1.5rem;
+}
+
 #app svg {
   display: block;
   width: 100%;
@@ -100,11 +216,198 @@ body {
 
 .scenario-caption {
   box-sizing: border-box;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1rem clamp(1.25rem, 5vw, 4rem) 2rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--rule);
   color: var(--ink-muted);
   font-size: 0.95rem;
+}
+
+.canvas-dimmer {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background: color-mix(in srgb, var(--substrate) 72%, transparent);
+  cursor: pointer;
+}
+
+.inspector {
+  position: absolute;
+  z-index: 3;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: min(22rem, calc(100% - 2.5rem));
+  box-sizing: border-box;
+  padding: 1.25rem 1.35rem 1.5rem;
+  border: 1px solid var(--flow-control);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1rem 3rem color-mix(in srgb, var(--substrate) 80%, transparent);
+}
+
+.inspector__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.inspector__close {
+  padding: 0.25rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font: 0.78rem 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+}
+
+.inspector__close:hover {
+  color: var(--ink);
+}
+
+.inspector h2 {
+  margin: 1.25rem 0 0;
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(1.7rem, 4vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.inspector__status {
+  display: inline-block;
+  margin-top: 0.85rem;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--flow-egress);
+  color: var(--flow-egress);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+
+.inspector__facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.inspector__facts dt {
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.inspector__facts dd {
+  margin: 0.2rem 0 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.inspector__detail {
+  margin: 1rem 0 0;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.node-control {
+  cursor: pointer;
+  outline: none;
+}
+
+.node-box {
+  stroke-width: 1.5;
+  transition: stroke-width 120ms ease, stroke 120ms ease;
+}
+
+.node-control:hover .node-box {
+  stroke: var(--ink-muted);
+  stroke-width: 2.25;
+}
+
+.node-control:focus-visible .node-box,
+.node-control[data-selected='true'] .node-box {
+  stroke: var(--flow-control);
+  stroke-width: 3;
+}
+
+.flow-legend {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 2.2fr);
+  gap: 1.5rem;
+  padding-top: 2rem;
+}
+
+.flow-legend ul {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-entry {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  color: var(--ink);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.legend-entry strong {
+  display: block;
+  font-weight: 600;
+}
+
+.legend-meaning {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink-muted);
+}
+
+.legend-swatch {
+  display: block;
+  width: 0.65rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  margin-top: 0.18rem;
+  border-radius: 50%;
+  background: var(--legend-flow);
+  box-shadow: 0 0 0 2px var(--substrate), 0 0 0 3px var(--legend-flow);
+}
+
+@media (max-width: 900px) {
+  .scenario-rail,
+  .flow-legend {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .scenario-buttons {
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
+
+  .flow-legend ul {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scenario-button,
+  .node-box {
+    transition: none;
+  }
 }
 
 .edge {
