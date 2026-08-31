@@ -1,0 +1,53 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
+
+context: |
+  Static single-page site, no backend, no framework.
+  Build: Vite + TypeScript. Rendering: direct SVG DOM manipulation.
+  Animation: Web Animations API and CSS offset-path only.
+  Deploy: GitHub Pages via Actions, base path is not root.
+  All topology and scenario content lives in JSON, never in code.
+  All colour via CSS custom properties.
+rules:
+  proposal:
+    - State which runbook step this implements
+    - State what a reviewer should be able to see working afterwards
+  specs:
+    - Use Given/When/Then scenarios
+    - Every animation requirement must state its reduced-motion behaviour
+  design:
+    - Name any new dependency explicitly and justify it, or state that none is added
+    - Note determinism: no Math.random() in animation paths
+  tasks:
+    - Keep tasks small enough to complete without clearing context
+    - Last task is always the step checkpoint from the runbook
