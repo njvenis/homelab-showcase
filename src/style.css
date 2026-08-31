@@ -408,6 +408,10 @@ body {
   .node-box {
     transition: none;
   }
+
+  .packet {
+    display: none;
+  }
 }
 
 .edge {
