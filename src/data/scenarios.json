@@ -53,8 +53,8 @@
     "name": "Health sweep",
     "caption": "cron fires its scheduled checks and triggers maintenance, and the metrics land in Grafana.",
     "hops": [
-      { "edge": "cron-n8n", "at": 0, "duration": 700 },
-      { "edge": "cron-grafana", "at": 700, "duration": 900 }
+      { "edge": "cron-grafana", "at": 0, "duration": 800 },
+      { "edge": "cron-n8n", "at": 0, "duration": 600 }
     ]
   },
   {
