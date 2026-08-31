@@ -19,14 +19,20 @@
       { "edge": "discord-hermes", "at": 0, "duration": 600 },
       { "edge": "hermes-workspace", "at": 600, "duration": 500 },
       { "edge": "workspace-opencode", "at": 1100, "duration": 500 },
-      { "edge": "opencode-swap", "at": 1600, "duration": 600 },
-      { "edge": "swap-ninfer", "at": 2200, "duration": 1000 },
-      { "edge": "opencode-mnemosyne", "at": 3200, "duration": 400 },
-      { "edge": "opencode-mnemosyne", "at": 3600, "duration": 400, "reverse": true },
-      { "edge": "opencode-langfuse", "at": 4000, "duration": 500 },
-      { "edge": "workspace-opencode", "at": 4500, "duration": 400, "reverse": true },
-      { "edge": "hermes-workspace", "at": 4900, "duration": 400, "reverse": true },
-      { "edge": "discord-hermes", "at": 5300, "duration": 600, "reverse": true }
+      { "edge": "opencode-swap", "at": 1600, "duration": 700 },
+      { "edge": "opencode-swap", "at": 1660, "duration": 700 },
+      { "edge": "opencode-swap", "at": 1720, "duration": 700 },
+      { "edge": "opencode-swap", "at": 1780, "duration": 700 },
+      { "edge": "swap-ninfer", "at": 2300, "duration": 1200 },
+      { "edge": "swap-ninfer", "at": 2360, "duration": 1200 },
+      { "edge": "swap-ninfer", "at": 2420, "duration": 1200 },
+      { "edge": "swap-ninfer", "at": 2480, "duration": 1200 },
+      { "edge": "opencode-mnemosyne", "at": 3680, "duration": 350 },
+      { "edge": "opencode-mnemosyne", "at": 4030, "duration": 350, "reverse": true },
+      { "edge": "opencode-langfuse", "at": 4380, "duration": 450 },
+      { "edge": "workspace-opencode", "at": 4830, "duration": 500, "reverse": true },
+      { "edge": "hermes-workspace", "at": 5330, "duration": 500, "reverse": true },
+      { "edge": "discord-hermes", "at": 5830, "duration": 600, "reverse": true }
     ]
   },
   {
