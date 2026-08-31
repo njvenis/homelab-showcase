@@ -51,14 +51,35 @@
   --bloom-egress: color-mix(in oklch, var(--flow-egress) 14%, transparent);
   --bloom-network: color-mix(in oklch, var(--flow-network) 14%, transparent);
 
-  --text-body: 1rem;
-  --text-subhead: 1.25rem;
-  --text-display: 3.0517578125rem;
+  /* Type — 7 steps with real jumps. The gap between them is the point. */
+  --text-xs:    0.75rem;    /* mono readouts only */
+  --text-sm:    0.875rem;   /* secondary, captions, legend */
+  --text-base:  1.0625rem;  /* body — slightly above 16px reads as considered */
+  --text-lg:    1.375rem;   /* standfirst, flow-row lead */
+  --text-xl:    2rem;       /* subsection, inspector title */
+  --text-2xl:   3rem;       /* section headings — currently 1.35rem */
+  --text-hero:  clamp(3.5rem, 8vw, 5.5rem);
+
+  /* Space — one scale, used everywhere */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;   /* between major sections */
+
+  /* Measure — three widths, chosen per content type */
+  --measure-prose: 34rem;    /* ~64ch, for anything read as sentences */
+  --measure-wide:  75rem;    /* controls, legend, flow rows */
+  --measure-stage: 92rem;    /* diagram only — it should exceed everything */
 }
 
 html {
   background: var(--substrate);
-  font-size: 16px;
 }
 
 body {
@@ -66,36 +87,39 @@ body {
   background: var(--substrate);
   color: var(--ink);
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: var(--text-body);
+  font-size: var(--text-base);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 .page-header {
   box-sizing: border-box;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: clamp(2.5rem, 7vw, 6rem) clamp(1.25rem, 5vw, 4rem) clamp(2rem, 5vw, 3.5rem);
+  width: min(100%, var(--measure-wide));
+  margin-inline: auto;
+  /* --space-32 on top and bottom frames the title; the readout→stage step comes
+     from #topology-stage's margin-top (--space-24) below. */
+  padding: var(--space-32) var(--space-6) var(--space-32);
   border-bottom: 1px solid var(--rule);
 }
 
 .page-header h1 {
-  max-width: 18ch;
+  max-width: 16ch;
   margin: 0;
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: clamp(2.44140625rem, 6vw, var(--text-display));
+  font-size: var(--text-hero);
   font-weight: 500;
   letter-spacing: -0.025em;
-  line-height: 1.04;
+  line-height: 0.98;
   text-wrap: balance;
 }
 
 .page-header p {
-  max-width: 62ch;
-  margin: 1.25rem 0 0;
+  max-width: var(--measure-prose);
+  margin: var(--space-16) 0 0;
   color: var(--ink-muted);
-  font-size: var(--text-subhead);
+  font-size: var(--text-lg);
+  text-align: start;
   line-height: 1.45;
 }
 
@@ -105,11 +129,18 @@ body {
   scrollbar-color: var(--rule) var(--substrate);
 }
 
+/* Host the interactive layer on the diagram's own axis: the shell is the widest
+   element on the page so #topology-stage can exceed everything around it. Narrower
+   groups (rail, legend, flow rows) self-constrain to --measure-wide, so widening
+   the shell does not widen their prose. Keep #topology-stage nested — no structural
+   move; selectLayout(stageWidth) reacts to the live width via the ResizeObserver. */
 .interaction-shell {
   box-sizing: border-box;
-  width: min(100%, 1400px);
+  width: min(100%, var(--measure-stage));
   margin: 0 auto;
-  padding: clamp(1.25rem, 4vw, 2.5rem) clamp(1.25rem, 5vw, 4rem) 3.5rem;
+  /* Leading cadence now lives entirely in the header; shell contributes only its
+     base and horizontal padding around the nested stage. */
+  padding: 0 var(--space-6) var(--space-12);
 }
 
 .sr-only {
@@ -125,35 +156,37 @@ body {
 }
 
 .scenario-rail {
+  box-sizing: border-box;
+  width: min(100%, var(--measure-wide));
+  margin-inline: auto;
   display: grid;
   grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 2.2fr);
-  gap: 1.5rem;
+  gap: var(--space-6);
   align-items: end;
-  padding: 0 0 1.5rem;
-  border-bottom: 1px solid var(--rule);
+  padding: 0 0 var(--space-6);
 }
 
 .scenario-rail__intro h2,
 .flow-legend__heading h2 {
-  margin: 0.35rem 0 0;
+  margin: var(--space-1) 0 0;
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: 1.35rem;
+  font-size: var(--text-2xl);
   font-weight: 500;
   letter-spacing: -0.015em;
   line-height: 1.1;
 }
 
 .scenario-rail__intro p {
-  margin: 0.45rem 0 0;
+  margin: var(--space-2) 0 0;
   color: var(--ink-muted);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
 }
 
 .scenario-buttons {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .scenario-button {
@@ -163,8 +196,8 @@ body {
   box-sizing: border-box;
   flex-direction: column;
   justify-content: center;
-  gap: 0.2rem;
-  padding: 0.7rem 0.8rem 0.65rem;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) var(--space-2);
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--surface);
@@ -192,7 +225,7 @@ body {
 }
 
 .scenario-button__name {
-  font-size: 0.82rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 1.2;
 }
@@ -200,7 +233,7 @@ body {
 .scenario-button__status {
   color: var(--flow-control);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.62rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -218,10 +251,12 @@ body {
   background-color: var(--flow-control);
 }
 
+/* --space-24 before the stage lives here as the stage's own margin-top; it stacks
+   on the shell's bottom padding (--space-12) within the nested shell. */
 .topology-stage {
   position: relative;
   isolation: isolate;
-  margin-top: 1.5rem;
+  margin-top: var(--space-24);
 }
 
 /* Single restrained two-hue radial bloom (control + infer are the two dominant
@@ -246,10 +281,9 @@ body {
 .scenario-caption {
   box-sizing: border-box;
   margin: 0;
-  padding: 1rem 0 0;
-  border-top: 1px solid var(--rule);
+  padding: var(--space-4) 0 0;
   color: var(--ink-muted);
-  font-size: 0.95rem;
+  font-size: var(--text-sm);
 }
 
 .canvas-dimmer {
@@ -263,11 +297,11 @@ body {
 .inspector {
   position: absolute;
   z-index: 3;
-  top: 1.25rem;
-  right: 1.25rem;
+  top: var(--space-4);
+  right: var(--space-4);
   width: min(22rem, calc(100% - 2.5rem));
   box-sizing: border-box;
-  padding: 1.25rem 1.35rem 1.5rem;
+  padding: var(--space-4) var(--space-6) var(--space-6);
   border: 1px solid var(--flow-control);
   border-radius: 8px;
   background: var(--surface);
@@ -278,16 +312,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .inspector__close {
-  padding: 0.25rem 0;
+  padding: var(--space-1) 0;
   border: 0;
   background: transparent;
   color: var(--ink-muted);
   cursor: pointer;
-  font: 0.78rem 'IBM Plex Mono', monospace;
+  font: var(--text-xs) 'IBM Plex Mono', monospace;
   text-transform: uppercase;
 }
 
@@ -296,10 +330,10 @@ body {
 }
 
 .inspector h2 {
-  margin: 1.25rem 0 0;
+  margin: var(--space-4) 0 0;
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: clamp(1.7rem, 4vw, 2.25rem);
+  font-size: var(--text-xl);
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 1.05;
@@ -307,44 +341,42 @@ body {
 
 .inspector__status {
   display: inline-block;
-  margin-top: 0.85rem;
-  padding: 0.25rem 0.45rem;
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--flow-egress);
   color: var(--flow-egress);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
 }
 
 .inspector__facts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  margin: 1.5rem 0 0;
-  padding: 0.9rem 0;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
+  gap: var(--space-3);
+  margin: var(--space-6) 0 0;
+  padding: var(--space-2) 0;
 }
 
 .inspector__facts dt {
   color: var(--ink-muted);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .inspector__facts dd {
-  margin: 0.2rem 0 0;
+  margin: var(--space-1) 0 0;
   color: var(--ink);
-  font-size: 0.88rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .inspector__detail {
-  margin: 1rem 0 0;
+  margin: var(--space-4) 0 0;
   color: var(--ink-muted);
-  font-size: 0.95rem;
+  font-size: var(--text-sm);
   line-height: 1.55;
 }
 
@@ -370,16 +402,19 @@ body {
 }
 
 .flow-legend {
+  box-sizing: border-box;
+  width: min(100%, var(--measure-wide));
+  margin-inline: auto;
   display: grid;
   grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 2.2fr);
-  gap: 1.5rem;
-  padding-top: 2rem;
+  gap: var(--space-6);
+  padding-top: var(--space-8);
 }
 
 .flow-legend ul {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 0.85rem;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -387,10 +422,10 @@ body {
 
 .legend-entry {
   display: flex;
-  gap: 0.55rem;
+  gap: var(--space-2);
   align-items: flex-start;
   color: var(--ink);
-  font-size: 0.78rem;
+  font-size: var(--text-sm);
   line-height: 1.3;
 }
 
@@ -401,7 +436,7 @@ body {
 
 .legend-meaning {
   display: block;
-  margin-top: 0.15rem;
+  margin-top: var(--space-1);
   color: var(--ink-muted);
 }
 
@@ -410,7 +445,7 @@ body {
   flex: 0 0 auto;
   width: 1.4rem;
   height: 3px;
-  margin-top: 0.18rem;
+  margin-top: var(--space-1);
   border-radius: 2px;
   background: var(--legend-flow);
   box-shadow: 0 0 10px 0 var(--legend-flow);
@@ -420,7 +455,27 @@ body {
   .scenario-rail,
   .flow-legend {
     grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: var(--space-4);
+  }
+
+  /* Editorial grids collapse to a single column: heading above its rows/articles,
+     sticky pinned off so the label sits at the top of the section like the rail does. */
+  .flows,
+  .decisions {
+    grid-template-columns: 1fr;
+  }
+
+  .flows h2,
+  .decisions__heading,
+  .flow-row,
+  .decision {
+    grid-column: 1;
+  }
+
+  .flows h2,
+  .decisions__heading {
+    position: static;
+    align-self: auto;
   }
 
   .scenario-buttons {
@@ -499,14 +554,14 @@ body {
 .zone-label {
   fill: var(--ink);
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 1rem;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .zone-sub {
   fill: var(--ink-muted);
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 .node-box {
@@ -542,27 +597,19 @@ body {
 .node-label {
   fill: var(--ink);
   font-family: 'IBM Plex Sans', sans-serif;
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   font-weight: 500;
   text-anchor: middle;
 }
 
+/* Flat-clamp fallback so --text-hero (3.5rem floor) does not balloon the title at
+   phone widths; max-width tightens from 16ch to ~14ch. Surrounding padding/margins
+   already come from tokens, so nothing raw leaks here. */
 @media (max-width: 640px) {
-  .page-header {
-    padding-top: 2.25rem;
-    padding-bottom: 1.75rem;
-  }
-
   .page-header h1 {
     max-width: 14ch;
-    font-size: 2.44140625rem;
+    font-size: clamp(2.4rem, 12vw, 3rem);
   }
-
-  .page-header p {
-    margin-top: 1rem;
-    font-size: 1rem;
-  }
-
 }
 
 /* Hero readout: an instrument's status line, not a stat card. Mono, lowercase,
@@ -570,46 +617,36 @@ body {
    legible down to 380px (see the breakpoint below). */
 #hero-readout {
   box-sizing: border-box;
-  max-width: 62ch;
-  margin: 1.25rem 0 0;
+  max-width: var(--measure-prose);
+  margin: var(--space-8) 0 0;
   color: var(--ink-muted);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   letter-spacing: 0.02em;
   text-transform: lowercase;
+  text-align: start;
   line-height: 1.4;
 }
 
 /* Editorial structure wrapped around the diagram. Full-width centred column,
    matching the interaction shell's horizontal rhythm. Spacing does all the
    separating — no cards, no decorative row borders. */
-.decisions,
-.site-footer {
+.decisions {
   box-sizing: border-box;
-  width: min(100%, 1400px);
+  width: min(100%, var(--measure-wide));
   margin-inline: auto;
-  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.25rem, 5vw, 4rem);
-}
-
-.decisions__heading {
-  margin: 0 0 2rem;
-  color: var(--ink);
-  font-family: Fraunces, Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 500;
-  letter-spacing: -0.015em;
-  line-height: 1.12;
-}
-
-.decision + .decision {
-  margin-top: clamp(1.75rem, 4vw, 2.75rem);
+  margin-top: var(--space-32);
+  padding: var(--space-12) var(--space-6) var(--space-8);
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(0, 3fr);
+  gap: var(--space-12);
 }
 
 .decision__title {
-  margin: 0 0 0.5rem;
+  margin: 0 0 var(--space-2);
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: 1.35rem;
+  font-size: var(--text-lg);
   font-weight: 500;
   letter-spacing: -0.015em;
   line-height: 1.14;
@@ -617,22 +654,26 @@ body {
 
 .decision__body {
   margin: 0;
-  max-width: 62ch;
+  max-width: var(--measure-prose);
   color: var(--ink-muted);
-  font-size: var(--text-body);
+  font-size: var(--text-base);
+  text-align: start;
   line-height: 1.55;
 }
 
 .site-footer {
-  padding-top: clamp(2rem, 4vw, 3rem);
-  padding-bottom: clamp(2.5rem, 6vw, 5rem);
+  box-sizing: border-box;
+  width: min(100%, var(--measure-wide));
+  margin-inline: auto;
+  margin-top: var(--space-32);
+  padding: var(--space-12) var(--space-6) var(--space-24);
 }
 
 .site-footer__line {
   margin: 0;
-  max-width: 62ch;
+  max-width: var(--measure-prose);
   color: var(--ink-muted);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   line-height: 1.5;
 }
 
@@ -650,46 +691,66 @@ body {
 /* One full-width row per scenario, in data order. Rows separate by spacing alone
    — no cards, no decorative rows borders — with a 3px left accent in each
    scenario's dominant flow hue (--scenario-flow set inline per row). */
+/* Editorial two-column: heading label left (sticky), rows right. Container axis is
+   the wide measure; each row self-constrains inside its content column (--space-12
+   gutter between label and body). Rows separate by spacing alone — no cards, 3px left
+   accent on each row encodes its scenario flow hue. */
 .flows {
   box-sizing: border-box;
-  width: min(100%, 1400px);
+  width: min(100%, var(--measure-wide));
   margin-inline: auto;
-  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.25rem, 5vw, 4rem);
+  margin-top: var(--space-32);
+  padding: var(--space-12) var(--space-6) var(--space-8);
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(0, 3fr);
+  gap: var(--space-12);
 }
 
-.flows h2 {
-  margin: 0 0 2rem;
+/* Both sections use the same rail-style narrow-label / wide-content grid. The
+   heading is the sticky label in column 1; rows/articles fill column 2 below it. */
+.flows h2,
+.decisions__heading {
+  margin: 0;
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 500;
-  letter-spacing: -0.015em;
+  font-size: var(--text-2xl);
+  font-weight: 460;
+  letter-spacing: -0.02em;
   line-height: 1.12;
+  grid-column: 1;
+  position: sticky;
+  top: var(--space-8);
+  align-self: start;
+}
+
+.flow-row,
+.decision {
+  grid-column: 2;
 }
 
 .flow-row {
   display: flex;
-  gap: 1.5rem;
+  width: 100%;
+  max-width: var(--measure-wide);
+  margin-inline: auto;
+  gap: var(--space-6);
   align-items: stretch;
   position: relative;
-  padding-block: clamp(1.5rem, 3.5vw, 2.5rem);
-}
-
-.flow-row + .flow-row {
-  padding-top: clamp(1.25rem, 2.5vw, 1.75rem);
+  padding-block: var(--space-6);
 }
 
 .flow-row__body {
   min-width: 0;
   width: 100%;
-  max-width: 62ch;
+  max-width: var(--measure-prose);
+  text-align: start;
 }
 
 .flow-row__title {
-  margin: 0.1rem 0 0.5rem;
+  margin: 0 0 var(--space-2);
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: var(--text-subhead);
+  font-size: var(--text-lg);
   font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -698,7 +759,7 @@ body {
 .flow-row__text {
   margin: 0;
   color: var(--ink-muted);
-  font-size: var(--text-body);
+  font-size: var(--text-base);
   line-height: 1.5;
   text-wrap: pretty;
 }
@@ -722,7 +783,7 @@ body {
   min-width: 5.5rem;
   min-height: 2.75rem;
   box-sizing: border-box;
-  padding: 0.65rem 1.2rem;
+  padding: var(--space-2) var(--space-4);
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--surface);
@@ -766,23 +827,45 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
+/* Keep the editorial sections aligned with the rail below the collapse width.
+   This late override follows the section declarations above it. */
+@media (max-width: 900px) {
+  .flows,
+  .decisions {
+    grid-template-columns: 1fr;
+  }
+
+  .flows h2,
+  .decisions__heading,
+  .flow-row,
+  .decision {
+    grid-column: 1;
+  }
+
+  .flows h2,
+  .decisions__heading {
+    position: static;
+    align-self: auto;
+  }
+}
+
 @media (max-width: 380px) {
   .flows {
-    padding-inline: clamp(1.25rem, 5vw, 2rem);
+    padding-inline: clamp(var(--space-4), 5vw, var(--space-8));
   }
 
   .flow-row {
-    gap: 1rem;
+    gap: var(--space-4);
   }
 
   .flow-row__play {
     min-width: 4.5rem;
-    padding: 0.6rem 0.9rem;
-    font-size: 0.9rem;
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
   }
 
   #hero-readout {
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
     word-spacing: 0.06em;
   }
 }
