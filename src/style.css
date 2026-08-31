@@ -98,6 +98,15 @@ body {
   height: auto;
 }
 
+.scenario-caption {
+  box-sizing: border-box;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem clamp(1.25rem, 5vw, 4rem) 2rem;
+  color: var(--ink-muted);
+  font-size: 0.95rem;
+}
+
 .edge {
   fill: none;
   stroke: var(--rule);

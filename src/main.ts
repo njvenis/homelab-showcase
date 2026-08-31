@@ -2,6 +2,7 @@ import './style.css'
 import { scenarios, topology } from './data/load.ts'
 import { edgePath, getNodeRects, layout, NODE_HEIGHT, type NodeRect } from './layout.ts'
 import { animatePacket, type PacketHandle } from './packet.ts'
+import { play, reset, stop, subscribe } from './scenario.ts'
 import type { FlowKind } from './types.ts'
 
 const NODE_RX = 8
@@ -58,7 +59,13 @@ function renderTopology(): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Homelab stack topology">${markerDefs}${zoneEls.join('')}${edgeEls.join('')}${nodeEls.join('')}</svg>`
 }
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = renderTopology()
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `${renderTopology()}<p class="scenario-caption" id="scenario-caption" aria-live="polite" aria-atomic="true" hidden></p>`
+
+const caption = document.querySelector<HTMLParagraphElement>('#scenario-caption')!
+subscribe(({ caption: text }) => {
+  caption.textContent = text ?? ''
+  caption.hidden = text === null
+})
 
 const renderedSvg = document.querySelector<SVGSVGElement>('#app svg')!
 const renderedEdges = new Map(
@@ -73,6 +80,11 @@ declare global {
       edges: typeof topology.edges
       scenarios: typeof scenarios
     }
+    __scenario: {
+      play: typeof play
+      stop: typeof stop
+      reset: typeof reset
+    }
   }
 }
 
@@ -85,3 +97,6 @@ window.homelabPacket = {
   edges: topology.edges,
   scenarios,
 }
+
+// Temporary Step 8 bridge for Step 9; remove window.__scenario at Step 10.
+window.__scenario = { play, stop, reset }

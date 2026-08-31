@@ -30,6 +30,22 @@ export type PacketHandle = {
   cancel: () => void
 }
 
+/** Cancel packet-owned visual residue when a scenario resets the diagram. */
+export function resetPacketActivity(): void {
+  document.querySelectorAll<SVGCircleElement>('circle.packet').forEach((packet) => {
+    packet.getAnimations().forEach((animation) => animation.cancel())
+    packet.remove()
+  })
+
+  for (const [edgeId, activity] of edgeActivity) {
+    activity.fade?.cancel()
+    const edgePath = [...document.querySelectorAll<SVGPathElement>('path.edge')].find((path) => path.id === edgeId)
+    edgePath?.getAnimations().forEach((animation) => animation.cancel())
+    edgePath?.style.removeProperty('stroke')
+  }
+  edgeActivity.clear()
+}
+
 function pathForCss(pathData: string): string {
   return `path("${pathData.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, ' ')}")`
 }
