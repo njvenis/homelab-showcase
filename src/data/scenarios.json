@@ -60,10 +60,12 @@
   {
     "id": "off-network-access",
     "name": "Off-network access",
-    "caption": "A phone joins the tailnet from anywhere and reaches Hermes. Nothing is exposed publicly, no ports open.",
+    "caption": "A phone joins the tailnet from anywhere and reaches Hermes without exposing ports or services publicly.",
     "hops": [
       { "edge": "phone-tailscale", "at": 0, "duration": 700 },
-      { "edge": "tailscale-hermes", "at": 700, "duration": 700 }
+      { "edge": "tailscale-hermes", "at": 700, "duration": 700 },
+      { "edge": "tailscale-hermes", "at": 1400, "duration": 700, "reverse": true },
+      { "edge": "phone-tailscale", "at": 2100, "duration": 700, "reverse": true }
     ]
   }
 ]
