@@ -1,0 +1,57 @@
+{
+  "zones": [
+    { "id": "pi",     "label": "Raspberry Pi 5",        "sub": "2TB NVMe · always-on" },
+    { "id": "wsl",    "label": "Workstation (WSL2)",    "sub": "RTX 5090 · Ryzen 9800X3D" },
+    { "id": "ext",    "label": "Outside the house",     "sub": "" }
+  ],
+  "nodes": [
+    { "id": "pihole",    "zone": "pi",  "label": "Pi-hole",           "kind": "network",  "detail": "DNS filtering for the house. A secondary resolver sits behind it so the Pi is not a single point of failure for name resolution." },
+    { "id": "hermes",    "zone": "pi",  "label": "Hermes",            "kind": "control",  "detail": "Always-on orchestrator. Receives instructions, routes work, returns results." },
+    { "id": "workspace", "zone": "pi",  "label": "Hermes workspace",  "kind": "control",  "detail": "Acts as the MCP sender — the bridge between the orchestrator and tools on the workstation." },
+    { "id": "discord",   "zone": "pi",  "label": "Discord gateway",   "kind": "control",  "detail": "Away-from-desk surface. Tasks go in and results come back without opening a laptop." },
+    { "id": "mnemosyne", "zone": "pi",  "label": "Mnemosyne",         "kind": "memory",   "detail": "Central memory server for the whole stack. One store, deliberately not co-located with inference." },
+    { "id": "grafana",   "zone": "pi",  "label": "Grafana",           "kind": "health",   "detail": "Dashboards for host and service health, fed by cron-driven checks." },
+    { "id": "cron",      "zone": "pi",  "label": "cron",              "kind": "health",   "detail": "Maintenance and health checks on a schedule." },
+    { "id": "tailscale", "zone": "pi",  "label": "Tailscale",         "kind": "network",  "detail": "Mesh fabric joining every host. Remote maintenance without exposing anything to the internet." },
+
+    { "id": "opencode",  "zone": "wsl", "label": "OpenCode",          "kind": "control",  "detail": "Heavily customised, with a bespoke AGENTS.md and Oh My OpenCode for subagents. Fan-out capped at 4." },
+    { "id": "swap",      "zone": "wsl", "label": "llama-swap",        "kind": "control",  "detail": "All models in one group, so exactly one is resident on the GPU at any moment. Mutual exclusion is enforced, not maintained by hand." },
+    { "id": "ninfer",    "zone": "wsl", "label": "NInfer · Qwen3.8-27B", "kind": "infer", "detail": "Primary inference server, extensively tuned. Around 170 tok/s." },
+    { "id": "vllm",      "zone": "wsl", "label": "vLLM · Nemotron 30B A3B", "kind": "infer", "detail": "Second model, NVFP4. Swapped in rather than run alongside." },
+    { "id": "comfy",     "zone": "wsl", "label": "ComfyUI",           "kind": "infer",    "detail": "Vision and diffusion models for diagrams and imagery. Also under llama-swap, so it cannot take VRAM behind the manager's back." },
+    { "id": "langfuse",  "zone": "wsl", "label": "Langfuse",          "kind": "health",   "detail": "Full tracing across agent runs. Latency spikes that do not track token counts are usually a model swap." },
+    { "id": "openspec",  "zone": "wsl", "label": "OpenSpec",          "kind": "control",  "detail": "Specs drive the work. Changes start as a written spec, not a prompt." },
+
+    { "id": "n8n",       "zone": "pi",  "label": "n8n",               "kind": "control",  "detail": "Containerised on the Pi with its own internal cron, separate from the host crontab. Reads the 08:30 output at 08:45 and renders it to HTML." },
+    { "id": "digest",    "zone": "wsl", "label": "Digest job",        "kind": "control",  "detail": "Fires at 08:30, hands the day's threat intel to Claude Cowork, and writes the returned briefing to local files. Not gated by llama-swap — the inference happens off-box." },
+
+    { "id": "cowork",    "zone": "ext", "label": "Claude Cowork",     "kind": "infer",    "detail": "Hosted model, currently doing the daily briefing generation. Being ported to local inference — the one remaining external dependency in the pipeline.", "transitional": true },
+    { "id": "resend",    "zone": "ext", "label": "Resend",            "kind": "egress",   "detail": "Third-party transactional send from send.nv-sec.com, SPF/DKIM/DMARC verified." },
+
+    { "id": "inbox",     "zone": "ext", "label": "Work inbox",        "kind": "egress",   "detail": "Where the morning briefing lands at 08:45." },
+    { "id": "phone",     "zone": "ext", "label": "Phone / laptop",    "kind": "network",  "detail": "Joins the tailnet from anywhere. No ports open." }
+  ],
+  "edges": [
+    { "id": "discord-hermes", "from": "discord", "to": "hermes", "kind": "control", "bidirectional": true },
+    { "id": "hermes-workspace", "from": "hermes", "to": "workspace", "kind": "control", "bidirectional": true },
+    { "id": "workspace-opencode", "from": "workspace", "to": "opencode", "kind": "control", "bidirectional": true },
+    { "id": "opencode-swap", "from": "opencode", "to": "swap", "kind": "control", "bidirectional": true },
+    { "id": "swap-ninfer", "from": "swap", "to": "ninfer", "kind": "infer", "bidirectional": true },
+    { "id": "swap-vllm", "from": "swap", "to": "vllm", "kind": "infer", "bidirectional": true },
+    { "id": "swap-comfy", "from": "swap", "to": "comfy", "kind": "infer", "bidirectional": true },
+    { "id": "opencode-mnemosyne", "from": "opencode", "to": "mnemosyne", "kind": "memory", "bidirectional": true },
+    { "id": "hermes-mnemosyne", "from": "hermes", "to": "mnemosyne", "kind": "memory", "bidirectional": true },
+    { "id": "opencode-langfuse", "from": "opencode", "to": "langfuse", "kind": "health" },
+    { "id": "opencode-openspec", "from": "opencode", "to": "openspec", "kind": "control", "bidirectional": true },
+    { "id": "cron-grafana", "from": "cron", "to": "grafana", "kind": "health" },
+    { "id": "cron-n8n", "from": "cron", "to": "n8n", "kind": "health" },
+    { "id": "digest-cowork", "from": "digest", "to": "cowork", "kind": "infer", "bidirectional": true },
+    { "id": "digest-n8n", "from": "digest", "to": "n8n", "kind": "control" },
+    { "id": "n8n-resend", "from": "n8n", "to": "resend", "kind": "egress" },
+    { "id": "resend-inbox", "from": "resend", "to": "inbox", "kind": "egress" },
+    { "id": "phone-tailscale", "from": "phone", "to": "tailscale", "kind": "network", "bidirectional": true },
+    { "id": "tailscale-hermes", "from": "tailscale", "to": "hermes", "kind": "network", "bidirectional": true },
+    { "id": "tailscale-opencode", "from": "tailscale", "to": "opencode", "kind": "network", "bidirectional": true },
+    { "id": "pihole-tailscale", "from": "pihole", "to": "tailscale", "kind": "network", "bidirectional": true }
+  ]
+}
