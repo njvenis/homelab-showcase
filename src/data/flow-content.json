@@ -1,0 +1,7 @@
+{
+  "morning-briefing": "At 08:30 the digest job gathers threat intel and sends it to Claude Cowork, which writes a briefing straight back to local files. At 08:45 n8n renders that briefing, runs it through Resend, and delivers it to the work inbox.",
+  "discord-task": "A Discord message reaches Hermes, which forwards it as an MCP sender into the workspace and on to OpenCode, where four subagents fan out across llama-swap. Mnemosyne is read and written, the whole run is traced to Langfuse, and the finished result rides back to Discord.",
+  "model-swap": "When a task needs imagery, llama-swap unloads Qwen from the GPU and swaps in the diffusion model so ComfyUI can generate without contention. As soon as it is done the queue returns to Qwen, keeping exactly one model resident at a time.",
+  "health-sweep": "On schedule cron fires its routine checks and kicks off maintenance across the stack. The metrics those checks produce land in Grafana for a single place to watch health.",
+  "off-network-access": "A phone joins the tailnet from anywhere and reaches Hermes directly, with no ports or services exposed publicly. It works without opening the homelab up to the rest of the internet."
+}

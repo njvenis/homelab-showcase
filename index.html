@@ -10,8 +10,27 @@
     <header class="page-header" aria-labelledby="page-title">
       <h1 id="page-title">A small stack, deliberately wired.</h1>
       <p>A self-hosted control plane for models, memory, and the services that keep the house running.</p>
+      <p id="hero-readout" role="status" aria-live="polite"></p>
     </header>
     <main id="app" aria-label="Homelab stack topology"></main>
+    <section class="decisions" aria-labelledby="decisions-heading">
+      <h2 id="decisions-heading" class="decisions__heading">Decisions</h2>
+      <article class="decision">
+        <h3 class="decision__title">One model resident at a time</h3>
+        <p class="decision__body">llama-swap unloads Qwen from the GPU and loads the diffusion model before ComfyUI generates, holding nothing in common between the two heavy weights. A single model stays resident because the unload-then-load protocol enforces it, not configuration, so VRAM never straddles two models at once.</p>
+      </article>
+      <article class="decision">
+        <h3 class="decision__title">Memory lives off the inference box</h3>
+        <p class="decision__body">Mnemosyne keeps retrieval memory outside the model server, so neither prompts nor answers ride through whichever weight is currently inferring; reads and writes travel their own edges no matter which model is resident. That separation lets the Discord task read and update the same store through OpenCode while llama-swap swaps a diffusion model onto the GPU.</p>
+      </article>
+      <article class="decision">
+        <h3 class="decision__title">Nothing exposed publicly</h3>
+        <p class="decision__body">Every external path terminates behind Tailscale, so no port or service binds to the public interface; an off-network phone still reaches Hermes only as a tailnet member. Because nothing listens externally there is no public surface to patch at midnight when the health sweep fires.</p>
+      </article>
+    </section>
+    <footer class="site-footer">
+      <p class="site-footer__line">Source on <a href="https://github.com/njvenis/homelab-showcase" class="site-footer__link">GitHub</a>. Built with the stack it describes.</p>
+    </footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

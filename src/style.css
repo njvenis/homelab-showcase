@@ -449,17 +449,6 @@ body {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .scenario-button,
-  .node-box {
-    transition: none;
-  }
-
-  .packet {
-    display: none;
-  }
-}
-
 .edge {
   fill: none;
   stroke: var(--rule);
@@ -574,4 +563,239 @@ body {
     font-size: 1rem;
   }
 
+}
+
+/* Hero readout: an instrument's status line, not a stat card. Mono, lowercase,
+   plain values separated by spaced middots; allowed to wrap normally so it stays
+   legible down to 380px (see the breakpoint below). */
+#hero-readout {
+  box-sizing: border-box;
+  max-width: 62ch;
+  margin: 1.25rem 0 0;
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  line-height: 1.4;
+}
+
+/* Editorial structure wrapped around the diagram. Full-width centred column,
+   matching the interaction shell's horizontal rhythm. Spacing does all the
+   separating — no cards, no decorative row borders. */
+.decisions,
+.site-footer {
+  box-sizing: border-box;
+  width: min(100%, 1400px);
+  margin-inline: auto;
+  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.25rem, 5vw, 4rem);
+}
+
+.decisions__heading {
+  margin: 0 0 2rem;
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+}
+
+.decision + .decision {
+  margin-top: clamp(1.75rem, 4vw, 2.75rem);
+}
+
+.decision__title {
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.14;
+}
+
+.decision__body {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+
+.site-footer {
+  padding-top: clamp(2rem, 4vw, 3rem);
+  padding-bottom: clamp(2.5rem, 6vw, 5rem);
+}
+
+.site-footer__line {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.site-footer__link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.site-footer__link:hover {
+  color: var(--ink-muted);
+}
+
+/* ---- Flows section ---- */
+/* One full-width row per scenario, in data order. Rows separate by spacing alone
+   — no cards, no decorative rows borders — with a 3px left accent in each
+   scenario's dominant flow hue (--scenario-flow set inline per row). */
+.flows {
+  box-sizing: border-box;
+  width: min(100%, 1400px);
+  margin-inline: auto;
+  padding: clamp(2.5rem, 6vw, 4.5rem) clamp(1.25rem, 5vw, 4rem);
+}
+
+.flows h2 {
+  margin: 0 0 2rem;
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 1.12;
+}
+
+.flow-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  position: relative;
+  padding-block: clamp(1.5rem, 3.5vw, 2.5rem);
+}
+
+.flow-row + .flow-row {
+  padding-top: clamp(1.25rem, 2.5vw, 1.75rem);
+}
+
+.flow-row__body {
+  min-width: 0;
+  width: 100%;
+  max-width: 62ch;
+}
+
+.flow-row__title {
+  margin: 0.1rem 0 0.5rem;
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: var(--text-subhead);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.flow-row__text {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* Left-edge accent carries the kind hue; brightens while the row runs. */
+.flow-row::before {
+  content: '';
+  position: absolute;
+  inset: 0.25rem 0 auto 0;
+  width: 3px;
+  background: var(--scenario-flow);
+  opacity: 0.5;
+  transition: opacity 160ms ease;
+}
+
+/* Play control mirrors the rail button; running state is drawn identically. */
+.flow-row__play {
+  position: relative;
+  align-self: center;
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  padding: 0.65rem 1.2rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.flow-row__play:hover {
+  border-color: var(--ink-muted);
+}
+
+.flow-row__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  width: var(--scenario-progress, 0%);
+  background-color: var(--flow-control);
+}
+
+.flow-row__play[data-running='true'] {
+  border-color: var(--flow-control);
+  background: var(--substrate);
+  box-shadow: inset 3px 0 0 var(--flow-control);
+}
+
+.flow-row[data-running='true']::before {
+  opacity: 1;
+}
+
+/* Visible keyboard focus for the page controls, including the Flows play
+   buttons. Matches the existing rail/inspector treatment exactly. */
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid var(--flow-control);
+  outline-offset: 3px;
+}
+
+@media (max-width: 380px) {
+  .flows {
+    padding-inline: clamp(1.25rem, 5vw, 2rem);
+  }
+
+  .flow-row {
+    gap: 1rem;
+  }
+
+  .flow-row__play {
+    min-width: 4.5rem;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  #hero-readout {
+    font-size: 0.75rem;
+    word-spacing: 0.06em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scenario-button,
+  .node-box,
+  .flow-row__play,
+  .flow-row::before {
+    transition: none;
+  }
+
+  .packet {
+    display: none;
+  }
 }

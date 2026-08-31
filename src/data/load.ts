@@ -1,6 +1,7 @@
 import topologyJson from './topology.json'
 import scenariosJson from './scenarios.json'
-import type { Edge, Scenario, Topology } from '../types.ts'
+import readoutJson from './readout.json'
+import type { Edge, Readout, Scenario, Topology } from '../types.ts'
 
 function uniqueById<T extends { id: string }>(items: readonly T[], label: string): Map<string, T> {
   const byId = new Map<string, T>()
@@ -59,5 +60,6 @@ const topology = topologyJson as Topology
 const edges = validateTopology(topology)
 const scenarios = scenariosJson as Scenario[]
 validateScenarios(scenarios, edges)
+const readout = readoutJson as Readout
 
-export { topology, scenarios }
+export { topology, scenarios, readout }

@@ -42,3 +42,9 @@ export interface Topology {
   nodes: Node[]
   edges: Edge[]
 }
+
+export interface Readout {
+  residentModels: number
+  briefingTime: string
+  qwenThroughput: string
+}

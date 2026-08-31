@@ -1,8 +1,9 @@
 import './style.css'
-import { scenarios, topology } from './data/load.ts'
+import { readout, scenarios, topology } from './data/load.ts'
 import { edgePath, getNodeRects, layout, NODE_HEIGHT, selectLayout, type NodeRect, type StageLayout } from './layout.ts'
 import { animatePacket, refreshPacketPaths, type PacketHandle } from './packet.ts'
 import { getState, play, stop, subscribe, type Arrival } from './scenario.ts'
+import flowContentJson from './data/flow-content.json'
 import type { FlowKind } from './types.ts'
 
 const NODE_RX = 8
@@ -25,6 +26,56 @@ const legendEntries = [
   { variable: '--flow-egress', label: 'Egress', meaning: 'outbound delivery' },
   { variable: '--flow-network', label: 'Network', meaning: 'peer and inbound links' },
 ] as const
+
+// Dominant flow kind for a row's accent: count edge kinds across hops (each hop
+// counts, so repeated hops accumulate), then pick the max with ties broken in
+// the fixed legend kind order below. Stable regardless of hop arrival order.
+const LEGEND_KIND_ORDER: readonly FlowKind[] = [
+  'control', 'memory', 'infer', 'health', 'egress', 'network',
+]
+
+function dominantFlowKind(scenario: typeof scenarios[number]): FlowKind {
+  const counts = new Map<FlowKind, number>()
+  for (const hop of scenario.hops) {
+    const kind = topology.edges.find((edge) => edge.id === hop.edge)?.kind
+    if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  }
+  let chosen: FlowKind = 'control'
+  let highest = -1
+  for (const kind of LEGEND_KIND_ORDER) {
+    const count = counts.get(kind) ?? 0
+    if (count > highest) {
+      highest = count
+      chosen = kind
+    }
+  }
+  return chosen
+}
+
+const dominantFlowById = new Map(scenarios.map((scenario) => [scenario.id, dominantFlowKind(scenario)]))
+
+// The one-row-per-scenario section below the diagram/caption/legend context. Row
+// hue comes from the scenario's --scenario-flow; descriptions are two sentences
+// written for the stack here, not the rail caption. Rows separate by spacing only.
+function renderFlowsSection(): string {
+  const rows = scenarios.map((scenario) => {
+    const flow = dominantFlowById.get(scenario.id) ?? 'control'
+    const description = (flowContentJson as Record<string, string>)[scenario.id]
+    if (!description) {
+      throw new Error(`missing flow content for scenario: ${scenario.id}`)
+    }
+    return (
+      `<article class="flow-row" style="--scenario-flow: var(--flow-${flow})">` +
+      `<div class="flow-row__body">` +
+      `<h3 class="flow-row__title">${esc(scenario.name)}</h3>` +
+      `<p class="flow-row__text">${esc(description)}</p>` +
+      '</div>' +
+      `<button class="flow-row__play" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario"><span class="flow-row__label">Play</span><span class="flow-row__progress" aria-hidden="true"></span><span class="scenario-button__status" hidden>Running</span></button>` +
+      '</article>'
+    )
+  }).join('')
+  return '<section class="flows" aria-labelledby="flows-title"><h2 id="flows-title">Flows</h2>' + rows + '</section>'
+}
 
 function esc(text: string): string {
   return text
@@ -161,13 +212,11 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML =
 '<p class="scenario-caption" id="scenario-caption" aria-live="polite" aria-atomic="true" hidden></p>' +
    '<p class="sr-only" id="scenario-arrival" aria-live="polite"></p>' +
    renderLegend() +
+renderFlowsSection() +
   '</div>'
 
 const caption = document.querySelector<HTMLParagraphElement>('#scenario-caption')!
 const arrivalLive = document.querySelector<HTMLParagraphElement>('#scenario-arrival')!
-const scenarioButtons = new Map(
-  [...document.querySelectorAll<HTMLButtonElement>('[data-scenario-id]')].map((button) => [button.dataset.scenarioId!, button]),
-)
 const scenarioNameById = new Map(scenarios.map((scenario) => [scenario.id, scenario.name]))
 const stage = document.querySelector<HTMLDivElement>('#topology-stage')!
 let renderedSvg = stage.querySelector<SVGSVGElement>('svg')!
@@ -319,9 +368,41 @@ stage.addEventListener('keydown', (event) => {
   }
 })
 
-scenarioButtons.forEach((button, scenarioId) => {
-  button.addEventListener('click', () => play(scenarioId))
-})
+// Every play control for a scenario — rail + Flows rows — grouped by id so the
+// single progress/status write-back touches both at once. Built from both button
+// kinds so duplicate ids resolve to a list, not one collapsed button.
+const buttonsByScenario = new Map<string, HTMLButtonElement[]>()
+const allPlayButtons = document.querySelectorAll<HTMLButtonElement>('.scenario-button, .flow-row__play')
+const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+for (const button of allPlayButtons) {
+  const id = button.dataset.scenarioId!
+  let list = buttonsByScenario.get(id)
+  if (!list) {
+    list = []
+    buttonsByScenario.set(id, list)
+  }
+  list.push(button)
+}
+
+// Exactly one click handler per button. Rail starts immediately; Flows rows
+// scroll the stage into view first, then start — both feed the same engine.
+for (const button of allPlayButtons) {
+  const id = button.dataset.scenarioId!
+  button.addEventListener('click', () => {
+    if (button.classList.contains('flow-row__play')) {
+      stage.scrollIntoView({ behavior: reducedMotionQuery.matches ? 'auto' : 'smooth' })
+    }
+    play(id)
+  })
+}
+
+// The left-edge accent lives on each article; mirroring data-running onto it lets
+// CSS brighten the accent when its scenario runs.
+const flowsRowById = new Map<string, HTMLElement>()
+for (const article of document.querySelectorAll<HTMLElement>('.flow-row')) {
+  const button = article.querySelector<HTMLButtonElement>('.flow-row__play')
+  if (button?.dataset.scenarioId) flowsRowById.set(button.dataset.scenarioId, article)
+}
 
 closeInspectorButton.addEventListener('click', closeInspector)
 dimmer.addEventListener('click', closeInspector)
@@ -391,93 +472,104 @@ function tickProgress(): void {
   if (progressId === null) return
   const total = scenarioTotalDuration(progressId)
   const elapsed = Math.min(Math.max(0, performance.now() - progressStart), total)
-  const button = scenarioButtons.get(progressId)
-  if (button && total > 0) {
-    button.style.setProperty('--scenario-progress', `${(elapsed / total) * 100}%`)
+  const buttons = buttonsByScenario.get(progressId)
+  if (buttons?.length && total > 0) {
+    const percent = `${(elapsed / total) * 100}%`
+    for (const button of buttons) button.style.setProperty('--scenario-progress', percent)
     announceStatus(progressId, Math.round(Math.min(1, elapsed / total) * 100))
   }
   progressRaf = requestAnimationFrame(tickProgress)
 }
 
-// Accessible "Running — N%" status text, keyed per button by integer percent so
+// Accessible "Running — N%" status text, keyed per scenario by integer percent so
 // it updates only when the rounded percentage actually changes: coalescing the
 // continuous RAF into discrete announcements (including the initial 0 and the
 // terminal 100) rather than spamming assistive tech every frame. Cleared for
-// buttons that leave the active scenario.
+// buttons that leave the active scenario. Announced once per id across all its
+// buttons so rail and Flows never double-announce.
 let lastStatusPct = new Map<string, number>()
 
-function statusElement(id: string): HTMLElement | undefined {
-  return scenarioButtons.get(id)?.querySelector<HTMLElement>('.scenario-button__status') ?? undefined
-}
-
 function announceStatus(id: string, intPct: number): void {
-  const status = statusElement(id)
-  if (status && lastStatusPct.get(id) !== intPct) {
-    lastStatusPct.set(id, intPct)
-    status.textContent = `Running — ${intPct}%`
-  }
+  if (lastStatusPct.get(id) === intPct) return
+  lastStatusPct.set(id, intPct)
+  buttonsByScenario.get(id)?.forEach((button) => {
+    const status = button.querySelector<HTMLElement>('.scenario-button__status')
+    if (status) status.textContent = `Running — ${intPct}%`
+  })
 }
 
 function forgetStatus(id: string): void {
-  if (lastStatusPct.delete(id)) statusElement(id)?.removeAttribute('data-pct')
+  if (lastStatusPct.delete(id)) {
+    buttonsByScenario.get(id)?.forEach((button) => {
+      const status = button.querySelector<HTMLElement>('.scenario-button__status')
+      if (status) status.removeAttribute('data-pct')
+    })
+  }
 }
 
 // Render caption, running indicator, accessible state, and per-button progress
-// together on every state change (initial idle included). The active scenario's
-// button is the sole owner/canceler of the single RAF; other buttons never fill
-// or touch it. Terminal completed holds 100% until the next run/stop.
+// together on every state change (initial idle included). The single RAF is owned
+// by the one active scenario; its progress/status/write-back hits every matching
+// button (rail + Flows rows) at once via buttonsByScenario. Terminal completed
+// holds 100% until the next run/stop.
 function renderProgress(): void {
   const { scenarioId, running, totalHops, completedHops } = getState()
   const terminal = scenarioId !== null && !running && totalHops > 0 && completedHops === totalHops
 
-  scenarioButtons.forEach((button, id) => {
+  for (const [id, buttons] of buttonsByScenario) {
     const active = scenarioId === id
     const playing = active && running
     const name = scenarioNameById.get(id) ?? ''
-    const status = button.querySelector<HTMLElement>('.scenario-button__status')
+    const row = flowsRowById.get(id)
+    if (row) row.setAttribute('data-running', String(playing))
 
-    button.classList.toggle('scenario-button--running', playing)
-    button.toggleAttribute('data-running', playing)
-    button.setAttribute('aria-pressed', String(playing))
-    button.setAttribute('aria-label', playing ? `Playing ${name} scenario` : `Play ${name} scenario`)
+    for (const button of buttons) {
+      button.classList.toggle('scenario-button--running', playing)
+      button.setAttribute('data-running', String(playing))
+      button.setAttribute('aria-pressed', String(playing))
+      button.setAttribute('aria-label', playing ? `Playing ${name} scenario` : `Play ${name} scenario`)
+    }
 
-    // Visible while this button owns the current run (running or just completed);
-    // hidden for every other button so only the active one is announced.
-    if (status) status.hidden = !active
+    for (const button of buttons) {
+      const status = button.querySelector<HTMLElement>('.scenario-button__status')
+      if (status) status.hidden = !active
+    }
+
     if (!active) {
       forgetStatus(id)
       if (scenarioId === null) cancelRaf()
-      button.style.removeProperty('--scenario-progress')
-      return
+      for (const button of buttons) button.style.removeProperty('--scenario-progress')
+      continue
     }
 
     // Defensive: an active owner implies a real scenarioId.
     if (scenarioId === null) {
       cancelRaf()
-      button.style.removeProperty('--scenario-progress')
-      return
+      for (const button of buttons) button.style.removeProperty('--scenario-progress')
+      continue
     }
 
     if (terminal) {
       cancelRaf()
-      button.style.setProperty('--scenario-progress', '100%')
+      for (const button of buttons) button.style.setProperty('--scenario-progress', '100%')
       announceStatus(id, 100)
-      return
+      continue
     }
 
     if (reducedQuery.matches) {
       cancelRaf()
       const fraction = totalHops > 0 ? Math.min(1, completedHops / totalHops) : 0
-      button.style.setProperty('--scenario-progress', `${fraction * 100}%`)
-      announceStatus(id, Math.round(fraction * 100))
-      return
+      const pct = Math.round(fraction * 100)
+      for (const button of buttons) button.style.setProperty('--scenario-progress', `${fraction * 100}%`)
+      announceStatus(id, pct)
+      continue
     }
 
     // Smooth bar: settle/resume the single owned RAF. TickProgress keeps the
     // accessible status in step, coalesced by integer percent.
     announceStatus(id, 0)
     settleRafFor(id)
-  })
+  }
 }
 
 // Caption reflects the engine state on every change, including initial idle.
@@ -663,4 +755,17 @@ window.addEventListener('pointerdown', onUserInteraction, true)
 window.addEventListener('keydown', onUserInteraction, true)
 window.addEventListener('click', onUserInteraction, true)
 
+// Instrument status line: node count from topology + the small readout payload.
+// Overwrites the static index placeholder so nothing here hardcodes metrics.
+function renderHeroReadout(): void {
+  const parts = [
+    `nodes ${topology.nodes.length}`,
+    `resident models ${readout.residentModels}`,
+    `briefing ${readout.briefingTime}`,
+    `qwen ${readout.qwenThroughput}`,
+  ]
+  document.querySelector<HTMLParagraphElement>('#hero-readout')!.textContent = parts.join(' · ')
+}
+
 armInitialDelay()
+renderHeroReadout()
