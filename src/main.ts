@@ -1,6 +1,8 @@
 import './style.css'
-import { topology } from './data/load.ts'
+import { scenarios, topology } from './data/load.ts'
 import { edgePath, getNodeRects, layout, NODE_HEIGHT, type NodeRect } from './layout.ts'
+import { animatePacket, type PacketHandle } from './packet.ts'
+import type { FlowKind } from './types.ts'
 
 const NODE_RX = 8
 const ZONE_RX = 16
@@ -57,3 +59,29 @@ function renderTopology(): string {
 }
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = renderTopology()
+
+const renderedSvg = document.querySelector<SVGSVGElement>('#app svg')!
+const renderedEdges = new Map(
+  [...renderedSvg.querySelectorAll<SVGPathElement>('path.edge')].map((path) => [path.id, path]),
+)
+const edgesById = new Map(topology.edges.map((edge) => [edge.id, edge]))
+
+declare global {
+  interface Window {
+    homelabPacket: {
+      start: (edgeId: string, flowKind: FlowKind, duration?: number, reverse?: boolean) => PacketHandle
+      edges: typeof topology.edges
+      scenarios: typeof scenarios
+    }
+  }
+}
+
+window.homelabPacket = {
+  start(edgeId: string, flowKind: FlowKind, duration = 1000, reverse = false) {
+    const edge = edgesById.get(edgeId)
+    if (!edge || !renderedEdges.has(edgeId)) throw new Error(`unknown rendered edge: ${edgeId}`)
+    return animatePacket(edge.id, flowKind, duration, reverse)
+  },
+  edges: topology.edges,
+  scenarios,
+}

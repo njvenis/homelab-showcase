@@ -104,6 +104,16 @@ body {
   stroke-width: 1.5;
 }
 
+.packet {
+  fill: var(--packet-flow);
+  filter: drop-shadow(0 0 3px var(--packet-flow)) drop-shadow(0 0 7px var(--packet-flow));
+  offset-anchor: 50% 50%;
+  offset-rotate: 0deg;
+  pointer-events: none;
+  stroke: var(--packet-flow);
+  stroke-width: 1;
+}
+
 .edge-marker {
   fill: var(--rule);
 }
