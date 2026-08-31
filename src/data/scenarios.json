@@ -2,13 +2,13 @@
   {
     "id": "morning-briefing",
     "name": "Morning briefing",
-    "caption": "08:30: the digest job hands the day's threat intel to Claude Cowork and writes the returned briefing to local files. 08:45: n8n's internal cron picks them up, renders HTML, and hands it to Resend. It lands in the work inbox. The only flow that leaves the house and comes back.",
+    "caption": "At 08:30 the digest job sends threat intel to Claude Cowork, writes the returned briefing to local files, and at 08:45 n8n renders it, sends it through Resend, and delivers it to the work inbox.",
     "hops": [
-      { "edge": "digest-cowork", "at": 0, "duration": 1200 },
-      { "edge": "digest-cowork", "at": 1200, "duration": 800, "reverse": true },
-      { "edge": "digest-n8n", "at": 2800, "duration": 600 },
-      { "edge": "n8n-resend", "at": 3400, "duration": 800 },
-      { "edge": "resend-inbox", "at": 4200, "duration": 600 }
+      { "edge": "digest-cowork", "at": 0, "duration": 2200 },
+      { "edge": "digest-cowork", "at": 2200, "duration": 1800, "reverse": true },
+      { "edge": "digest-n8n", "at": 6700, "duration": 550 },
+      { "edge": "n8n-resend", "at": 7250, "duration": 650 },
+      { "edge": "resend-inbox", "at": 7900, "duration": 450 }
     ]
   },
   {
