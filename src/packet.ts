@@ -19,12 +19,6 @@ const flowVariables: Record<Edge['kind'], string> = {
   network: '--flow-control',
 }
 
-const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-let prefersReducedMotion = motionQuery.matches
-motionQuery.addEventListener('change', ({ matches }) => {
-  prefersReducedMotion = matches
-})
-
 export type PacketHandle = {
   promise: Promise<void>
   cancel: () => void
@@ -110,7 +104,6 @@ function animatePacketHandle(
 
   const token = beginActivity(edgePath, edge)
   let animation: Animation | undefined
-  let timer: number | undefined
   let settled = false
   let resolvePromise!: () => void
   const promise = new Promise<void>((resolve) => {
@@ -120,27 +113,24 @@ function animatePacketHandle(
   const finalize = () => {
     if (settled) return
     settled = true
-    if (timer !== undefined) window.clearTimeout(timer)
     packet.remove()
     endActivity(edgePath, edge, token)
     resolvePromise()
   }
 
-  if (prefersReducedMotion) {
-    timer = window.setTimeout(finalize, hop.duration)
-  } else {
-    try {
-      animation = packet.animate([{ offsetDistance: startDistance }, { offsetDistance: endDistance }], {
-        duration: hop.duration,
-        easing: PACKET_EASING,
-        fill: 'forwards',
-      })
-      animation.onfinish = finalize
-      animation.oncancel = finalize
-    } catch (error) {
-      finalize()
-      throw error
-    }
+  // Reduced motion is presentation-only: CSS hides .packet under prefers-reduced-motion.
+  // The animation always runs so hop timing, cleanup, and overlapping hops stay deterministic.
+  try {
+    animation = packet.animate([{ offsetDistance: startDistance }, { offsetDistance: endDistance }], {
+      duration: hop.duration,
+      easing: PACKET_EASING,
+      fill: 'forwards',
+    })
+    animation.onfinish = finalize
+    animation.oncancel = finalize
+  } catch (error) {
+    finalize()
+    throw error
   }
 
   return {
