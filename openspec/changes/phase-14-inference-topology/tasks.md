@@ -7,26 +7,26 @@
 
 ## 2. Topology nodes
 
-- [ ] 2.1 Remove the `ninfer` and `vllm` nodes from `src/data/topology.json`.
-- [ ] 2.2 Add `qwen-uncensored` (`NInfer · Qwen3.8-27B Uncensored`), `ornith-dflash` (`NInfer · Ornith-1.5-35B DFlash`) and `nemotron` (`vLLM · Nemotron 3.5 30B A3B`), all zone `wsl`, kind `infer`.
-- [ ] 2.3 Write each node's `detail`. For `ornith-dflash`, include the recorded decode throughput, draft acceptance rate and tokens per round. For `qwen-uncensored`, state its purpose — adversarial testing and vulnerability discovery — plainly, with no disclaimer or apology.
-- [ ] 2.4 Update the `swap` node's `detail` to state that the group holds further configured members not currently in use, without implying they were uninstalled.
-- [ ] 2.5 Verify node count is 22, that no node has id `ninfer` or `vllm`, and that at least two node labels begin `NInfer ·`.
+- [x] 2.1 Remove the `ninfer` and `vllm` nodes from `src/data/topology.json`.
+- [x] 2.2 Add `qwen-uncensored` (`NInfer · Qwen3.8-27B Uncensored`), `ornith-dflash` (`NInfer · Ornith-1.5-35B DFlash`) and `nemotron` (`vLLM · Nemotron 3.5 30B A3B`), all zone `wsl`, kind `infer`.
+- [x] 2.3 Write each node's `detail`. For `ornith-dflash`, include the recorded decode throughput, draft acceptance rate and tokens per round. For `qwen-uncensored`, state its purpose — adversarial testing and vulnerability discovery — plainly, with no disclaimer or apology.
+- [x] 2.4 Update the `swap` node's `detail` to state that the group holds further configured members not currently in use, without implying they were uninstalled.
+- [x] 2.5 Verify node count is 22, that no node has id `ninfer` or `vllm`, and that at least two node labels begin `NInfer ·`.
 
 ## 3. Topology edges
 
-- [ ] 3.1 Rename `swap-ninfer` → `swap-ornith-dflash` with `to: "ornith-dflash"`.
-- [ ] 3.2 Rename `swap-vllm` → `swap-nemotron` with `to: "nemotron"`.
-- [ ] 3.3 Add `swap-qwen-uncensored` with `from: "swap"`, `to: "qwen-uncensored"`, `kind: "infer"`, `bidirectional: true`.
-- [ ] 3.4 Verify edge count is 22, all three new ids exist exactly once, and `npm run validate` exits zero.
+- [x] 3.1 Rename `swap-ninfer` → `swap-ornith-dflash` with `to: "ornith-dflash"`.
+- [x] 3.2 Rename `swap-vllm` → `swap-nemotron` with `to: "nemotron"`.
+- [x] 3.3 Add `swap-qwen-uncensored` with `from: "swap"`, `to: "qwen-uncensored"`, `kind: "infer"`, `bidirectional: true`.
+- [x] 3.4 Verify edge count is 22, all three new ids exist exactly once, and `npm run validate` exits zero.
 
 ## 4. Scenario hops — ids only
 
-- [ ] 4.1 Take a snapshot first: `python3 -c "import json;print([[ (h['at'],h['duration'],h.get('reverse')) for h in s['hops']] for s in json.load(open('src/data/scenarios.json'))])" > /tmp/hops-before.txt`
-- [ ] 4.2 Repoint the six hops referencing `swap-ninfer` to `swap-ornith-dflash` — four in `discord-task`, two in `model-swap`. Change nothing else.
-- [ ] 4.3 Re-run the snapshot to `/tmp/hops-after.txt` and confirm the two files are byte-identical. Any difference means a timing moved and must be reverted.
-- [ ] 4.4 Verify `git diff src/data/scenarios.json` shows exactly six changed lines, each a single `edge` string.
-- [ ] 4.5 Play `model-swap` and confirm the pause between 1500ms and 2700ms is intact, and hop count and total duration are unchanged.
+- [x] 4.1 Take a snapshot first: `python3 -c "import json;print([[ (h['at'],h['duration'],h.get('reverse')) for h in s['hops']] for s in json.load(open('src/data/scenarios.json'))])" > /tmp/hops-before.txt`
+- [x] 4.2 Repoint the six hops referencing `swap-ninfer` to `swap-ornith-dflash` — four in `discord-task`, two in `model-swap`. Change nothing else.
+- [x] 4.3 Re-run the snapshot to `/tmp/hops-after.txt` and confirm the two files are byte-identical. Any difference means a timing moved and must be reverted.
+- [x] 4.4 Verify `git diff src/data/scenarios.json` shows exactly six changed lines, each a single `edge` string.
+- [x] 4.5 Play `model-swap` and confirm the pause between 1500ms and 2700ms is intact, and hop count and total duration are unchanged.
 
 ## 5. Scenario prose
 
