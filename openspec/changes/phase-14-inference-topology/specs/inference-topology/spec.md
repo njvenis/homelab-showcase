@@ -50,8 +50,8 @@ The following four nodes SHALL exist in zone `wsl` with `kind: "infer"`:
 | id | label |
 |---|---|
 | `qwen-uncensored` | `NInfer · Qwen3.8-27B Uncensored` |
-| `ornith-dflash` | `NInfer · Ornith-1.5-35B DFlash` |
-| `nemotron` | `vLLM · Nemotron 3.5 30B A3B` |
+| `ornith-dflash` | `NInfer · Ornith-1.5-35B` |
+| `nemotron` | `vLLM · Nemotron 3.5 30B` |
 | `comfy` | unchanged from its current label |
 
 The `ninfer` and `vllm` nodes SHALL be removed.
@@ -140,6 +140,8 @@ The wording SHALL be a plain statement of purpose. It SHALL NOT be defensive, ap
 ### Requirement: Measured performance figures live in node detail, not the readout
 
 The `ornith-dflash` node's `detail` SHALL carry its recorded measurements: decode throughput, draft acceptance rate, and tokens per round.
+
+Its `detail` SHALL identify it as the DFlash-speculation entry and state that a separate MTP entry exists in the group for image input. The `nemotron` node's `detail` SHALL retain the full model name `Nemotron 3.5 30B A3B`.
 
 These figures SHALL NOT appear in `#hero-readout`.
 

@@ -8,8 +8,8 @@
 ## 2. Topology nodes
 
 - [x] 2.1 Remove the `ninfer` and `vllm` nodes from `src/data/topology.json`.
-- [x] 2.2 Add `qwen-uncensored` (`NInfer · Qwen3.8-27B Uncensored`), `ornith-dflash` (`NInfer · Ornith-1.5-35B DFlash`) and `nemotron` (`vLLM · Nemotron 3.5 30B A3B`), all zone `wsl`, kind `infer`.
-- [x] 2.3 Write each node's `detail`. For `ornith-dflash`, include the recorded decode throughput, draft acceptance rate and tokens per round. For `qwen-uncensored`, state its purpose — adversarial testing and vulnerability discovery — plainly, with no disclaimer or apology.
+- [x] 2.2 Add `qwen-uncensored` (`NInfer · Qwen3.8-27B Uncensored`), `ornith-dflash` (`NInfer · Ornith-1.5-35B`) and `nemotron` (`vLLM · Nemotron 3.5 30B`), all zone `wsl`, kind `infer`.
+- [x] 2.3 Write each node's `detail`. For `ornith-dflash`, identify the DFlash-speculation entry, state that a separate MTP entry exists in the group for image input, and include the recorded decode throughput, draft acceptance rate and tokens per round. For `qwen-uncensored`, state its purpose — adversarial testing and vulnerability discovery — plainly, with no disclaimer or apology. For `nemotron`, retain the full model name `Nemotron 3.5 30B A3B`.
 - [x] 2.4 Update the `swap` node's `detail` to state that the group holds further configured members not currently in use, without implying they were uninstalled.
 - [x] 2.5 Verify node count is 22, that no node has id `ninfer` or `vllm`, and that at least two node labels begin `NInfer ·`.
 
@@ -52,10 +52,10 @@
 - [x] 8.4 Negative test: set `reverse: true` on `n8n-resend`; confirm validate fails naming hop and edge; revert.
 - [x] 8.5 Play all five scenarios on the built site: zero `console.error`.
 - [x] 8.6 Select each of the four inference nodes and confirm the inspector shows the intended detail, including the measured figures on `ornith-dflash`.
-- [ ] 8.7 Verify no node detail introduced or changed contains "currently", "achieving", "sustained", "live", "real-time" or "monitoring".
-- [ ] 8.8 Screenshot the `wsl` zone at 1440px and 390px. Nine nodes now occupy a zone sized for eight — confirm no label overlap and no text clipped by the zone's 454px inner width. `NInfer · Ornith-1.5-35B DFlash` is the longest label; report its rendered width.
-- [ ] 8.9 Confirm the diff touches only `src/data/topology.json`, `src/data/scenarios.json`, `src/data/flow-content.json`, `src/data/readout.json`, `src/types.ts`, `DECISIONS.md`, and `src/main.ts` if the key rename required it.
-- [ ] 8.10 Report the new node and edge counts so `phase-13c`'s criteria can be updated before it is applied.
+- [x] 8.7 Verify no node detail introduced or changed contains "currently", "achieving", "sustained", "live", "real-time" or "monitoring".
+- [x] 8.8 Screenshot the `wsl` zone at 1440px and 390px. Nine nodes now occupy a zone sized for eight — confirm no label overlap and no text clipped by the zone's 454px inner width. `NInfer · Qwen3.8-27B Uncensored` is the longest label; report its rendered width.
+- [x] 8.9 Confirm the implementation diff touches only `src/data/topology.json`, `src/data/scenarios.json`, `src/data/flow-content.json`, `src/data/readout.json`, `src/types.ts`, `DECISIONS.md`, and `src/main.ts` if the key rename required it; the separately requested label-spec amendment is limited to the phase-14 spec and task wording.
+- [x] 8.10 Report the new node and edge counts so `phase-13c`'s criteria can be updated before it is applied: 22 nodes and 22 edges.
 
 ## Implementation decisions
 
@@ -72,4 +72,4 @@ Take the recommended default unless you have a concrete reason not to, and repor
 
 ## Out of scope, but worth reporting
 
-- [ ] 9.1 `docs/opencode-prompt-pack.md` pins `ninfer/qwen3.8-27b`, which is inconsistent with both the llama-swap config and this change. Do not edit it here; report it so it can be corrected separately.
+- [x] 9.1 `docs/opencode-prompt-pack.md` was reconciled with this change: its Discord and model-swap prompts use `swap-ornith-dflash` and Ornith DFlash, and any Qwen model reference uses the full name `Qwen3.8-27B Uncensored`.
