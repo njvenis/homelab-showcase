@@ -55,14 +55,14 @@ Focus dimming SHALL be applied only as `opacity` on `g.edge-group` and `g.node-c
 #### Scenario: Packet selectors still resolve
 
 - **GIVEN** the rendered topology after this change
-- **THEN** `document.querySelectorAll('path.edge').length` is 21
-- **AND** `document.querySelectorAll('.edge-glow[data-edge-id]').length` is 21
+- **THEN** `document.querySelectorAll('path.edge').length` equals `topology.edges.length`
+- **AND** `document.querySelectorAll('.edge-glow[data-edge-id]').length` equals the same
 - **AND** every `path.edge` `id` equals its wrapping group's `data-edge-id`
 
 #### Scenario: Only one element carries each node id
 
 - **GIVEN** the rendered topology
-- **THEN** `document.querySelectorAll('[data-node-id]').length` is 21
+- **THEN** `document.querySelectorAll('[data-node-id]').length` equals `topology.nodes.length`
 - **AND** each is a `g.node-control`
 
 #### Scenario: Document order is preserved
@@ -103,7 +103,7 @@ Focus dimming SHALL be applied only as `opacity` on `g.edge-group` and `g.node-c
 - **THEN** `g.node-control[data-node-id="swap"]` and every adjacent node control are at opacity 1
 - **AND** every `g.edge-group` whose edge has `from` or `to` equal to `swap` is at opacity 1
 - **AND** all remaining edge groups are at `var(--dim-inactive-edge)` and node controls at `var(--dim-inactive-node)`
-- **AND** `document.querySelectorAll('path.edge').length` is still 21
+- **AND** `document.querySelectorAll('path.edge').length` still equals `topology.edges.length`
 
 #### Scenario: Playback dims correctly
 
@@ -127,7 +127,7 @@ Focus dimming SHALL be applied only as `opacity` on `g.edge-group` and `g.node-c
 #### Scenario: Focus clears on completion
 
 - **GIVEN** a scenario run to completion with nothing selected
-- **THEN** all 21 edge groups and all 21 node controls are at opacity 1
+- **THEN** every edge group and every node control is at opacity 1
 
 #### Scenario: Determinism preserved
 

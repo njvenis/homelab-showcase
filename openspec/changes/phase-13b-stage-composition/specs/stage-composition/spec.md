@@ -183,9 +183,18 @@ Content is unchanged: node label, zone label, kind label, transitional status wh
 
 **≤ 390px** — as above, plus: masthead padding `var(--space-6)`; node detail becomes a bottom sheet with `overscroll-behavior: contain`, height ≤ 60% of viewport height, top edge below the vertical midpoint of the SVG's visible area; the stacked topology fits within 1200px of SVG height.
 
-**Stacked-layout constants** in `src/layout.ts`: `STACK_ROW_PITCH` 64 → 44, `STACK_HEADER` 56 → 40, `STACK_ZONE_GAP` 28 → 20. `STACK_TOP` unchanged at 24. `NODE_HEIGHT` unchanged at 36.
+**Stacked-layout constants** in `src/layout.ts`: `STACK_ROW_PITCH` 64 → 42, `STACK_HEADER` 56 → 40, `STACK_ZONE_GAP` 28 → 20. `STACK_TOP` unchanged at 24. `NODE_HEIGHT` unchanged at 36.
 
-Derivation to preserve: 21 × 44 = 924; 3 × 40 = 120; 2 × 20 = 40; 2 × 24 = 48; 3 × 20 per-zone bottom padding = 60. Total 1192 ≤ 1200. Recompute if any constant changes.
+Derivation to preserve, where `N` is `topology.nodes.length` and `Z` is `topology.zones.length`:
+
+```
+N × STACK_ROW_PITCH  +  Z × STACK_HEADER  +  (Z-1) × STACK_ZONE_GAP
+  +  2 × STACK_TOP  +  Z × 20            ≤ 1200
+```
+
+At the current data (N = 22, Z = 3): 22 × 42 = 924; 120; 40; 48; 60. Total 1192 ≤ 1200.
+
+**Recompute against the live counts before accepting, not against the numbers above.** Pitch 44 fits 21 nodes and overflows at 22 — this bound is sensitive to a single node being added, which is exactly what `phase-14-inference-topology` does.
 
 Note the resulting gutter: pitch 44 minus `NODE_HEIGHT` 36 leaves 8px between node boxes. Acceptance is measured on **label** bounding boxes, not node boxes.
 
@@ -197,7 +206,7 @@ Note the resulting gutter: pitch 44 minus `NODE_HEIGHT` 36 leaves 8px between no
 
 - **GIVEN** the page at 390×844
 - **THEN** the SVG `viewBox` height is ≤ 1200
-- **AND** all 21 node labels and 3 zone labels are present
+- **AND** every node label and every zone label is present (`topology.nodes.length` and `topology.zones.length` respectively)
 - **AND** the vertical clearance between the bounding boxes of any two adjacent node labels is ≥ 6px
 
 #### Scenario: Landscape phone remains usable

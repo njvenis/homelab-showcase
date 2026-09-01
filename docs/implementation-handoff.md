@@ -172,7 +172,7 @@ The overflow check runs at every width above. The fold measurement runs at 1440�
 
 - axe or Lighthouse accessibility at 390px and 1440px. Score 100 at both. Report the numbers, not "passed".
 - Full page traversal by Tab alone from the top: every scenario entry, every link and the node layer reachable, each with a visible focus indicator, no trap, no unreachable control.
-- Node layer: exactly one `[data-node-id][tabindex="0"]`; Tab into the SVG then Tab again leaves it; ArrowRight ×20 from the first node focuses each of the 21 exactly once.
+- Node layer: exactly one `[data-node-id][tabindex="0"]`; Tab into the SVG then Tab again leaves it; ArrowRight from the first node, `topology.nodes.length - 1` times, focuses each node exactly once.
 - Escape from detail returns `document.activeElement` to the invoking node.
 - `MutationObserver` on `#scenario-arrival` during `discord-task`: exactly two mutations across 17 arrivals.
 - Contrast measured explicitly, not inferred from a passing audit: `--ink-muted` at `--text-xs`; context-zone label against `--zone-context-fill` (13c); dimmed node label against the substrate (13c).
@@ -219,9 +219,9 @@ Any one of these fails the change regardless of how good the result looks.
 **Behavioural failure**
 - More than two live-region mutations for `discord-task`
 - More or fewer than one `[data-node-id][tabindex="0"]` at any point
-- More than 21 elements carrying `data-node-id`
+- More elements carrying `data-node-id` than `topology.nodes.length`
 - Any `circle.packet` that is not a direct child of the `svg` element
-- `document.querySelectorAll('path.edge').length` not equal to 21 after edge wrapping
+- `document.querySelectorAll('path.edge').length` not equal to `topology.edges.length` after edge wrapping
 - Fold measurement above 340px at 1440×900 or 300px at 1024×768
 - Stacked `viewBox` height above 1200 at 390px
 - `scrollWidth !== clientWidth` at any tested width

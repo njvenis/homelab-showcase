@@ -82,8 +82,8 @@ Arrow-key handling SHALL be bound on the node layer, not on `document`, so it do
 #### Scenario: Arrow keys traverse every node
 
 - **GIVEN** focus on the first node
-- **WHEN** ArrowRight is pressed 20 times
-- **THEN** each of the 21 nodes receives focus exactly once in document order
+- **WHEN** ArrowRight is pressed `topology.nodes.length - 1` times
+- **THEN** each node receives focus exactly once in document order, for all `topology.nodes.length` of them
 - **AND** each shows a visible focus indicator
 - **AND** after each move exactly one node carries `tabindex="0"`
 
