@@ -107,6 +107,17 @@ function topologyDescription(): string {
   return `Diagram of the homelab stack. ${zones}. Connections: ${connections}`
 }
 
+// First node in document order owns the lone roving tabindex=0; every other node
+// starts tabindex=-1. Document order is stable across responsive re-layout, which
+// only updates coordinates, never node order.
+const firstNodeId = (() => {
+  for (const zone of topology.zones) {
+    const member = topology.nodes.find((node) => node.zone === zone.id)
+    if (member) return member.id
+  }
+  return undefined
+})()
+
 function renderTopology(stageLayout: StageLayout): string {
   const { width, height } = stageLayout.viewBox
 
@@ -148,7 +159,7 @@ function renderTopology(stageLayout: StageLayout): string {
       const transitionalClass = node.transitional ? ' node--transitional' : ''
       const zoneLabel = topology.zones.find((candidate) => candidate.id === node.zone)?.label ?? node.zone
       return (
-        `<g class="node-control node--${node.kind}" data-node-id="${esc(node.id)}" data-node-kind="${esc(node.kind)}" role="button" tabindex="0" focusable="true" aria-label="Inspect ${esc(node.label)} in ${esc(zoneLabel)}">` +
+        `<g class="node-control node--${node.kind}" data-node-id="${esc(node.id)}" data-node-kind="${esc(node.kind)}" role="button" tabindex="${node.id === firstNodeId ? '0' : '-1'}" focusable="true" aria-label="Inspect ${esc(node.label)} in ${esc(zoneLabel)}">` +
         `<rect class="node-accent" x="${rect.x.toFixed(1)}" y="${rect.y.toFixed(1)}" width="3" height="${NODE_HEIGHT}" data-node-kind="${esc(node.kind)}" aria-hidden="true" style="pointer-events:none"/>` +
         `<rect class="node-box${transitionalClass}" x="${rect.x.toFixed(1)}" y="${rect.y.toFixed(1)}" width="${rect.width.toFixed(1)}" height="${NODE_HEIGHT}" rx="${NODE_RX}"/>` +
         `<text class="node-label" x="${centerX.toFixed(1)}" y="${(centerY + 4).toFixed(1)}">${esc(node.label)}</text>` +
@@ -347,8 +358,14 @@ function closeInspector(): void {
   selectedNodeId = null
   const returnTarget = invokingNode
   invokingNode = null
+  // Hand the lone roving tabindex back to the node focus returns to, resetting
+  // whichever node had it before opening. The fallback (responsive rerender may
+  // have dropped the invoker) keeps markup's first-node default of tabindex=0.
+  const previousRoving = [...nodeControls.values()].find((control) => control.getAttribute('tabindex') === '0')
   const fallback = renderedSvg.querySelector<SVGGElement>('.node-control')
-  const target = returnTarget?.isConnected ? returnTarget : fallback
+  const target = (returnTarget?.isConnected ? returnTarget : fallback) ?? null
+  previousRoving?.setAttribute('tabindex', '-1')
+  target?.setAttribute('tabindex', '0')
   target?.focus({ preventScroll: true })
 }
 
@@ -358,13 +375,63 @@ stage.addEventListener('click', (event) => {
   if (node?.dataset.nodeId) openInspector(node.dataset.nodeId, node)
 })
 
+// Roaming nodes document-order style: move the sole tabindex=0 together with
+// focus (no wrapping), Enter/Space still opens the inspector. Bound to the stage
+// so only nodes reach it; scenario rail/Flows buttons are never under here.
+function moveToNode(target: SVGGElement): void {
+  const current = [...nodeControls.values()].find((control) => control.getAttribute('tabindex') === '0')
+  if (current) current.setAttribute('tabindex', '-1')
+  target.setAttribute('tabindex', '0')
+  target.focus({ preventScroll: true })
+}
+
 stage.addEventListener('keydown', (event) => {
   if (!(event.target instanceof Element)) return
+  if (event.key === 'Escape' && !inspector.hidden) {
+    event.preventDefault()
+    closeInspector()
+    return
+  }
   const node = event.target.closest<SVGGElement>('.node-control')
   if (!node?.dataset.nodeId) return
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     openInspector(node.dataset.nodeId, node)
+    return
+  }
+
+  if (
+    event.key === 'ArrowLeft' ||
+    event.key === 'ArrowRight' ||
+    event.key === 'ArrowUp' ||
+    event.key === 'ArrowDown' ||
+    event.key === 'Home' ||
+    event.key === 'End'
+  ) {
+    event.preventDefault()
+    const controls = [...nodeControls.values()]
+    const currentIndex = controls.indexOf(node)
+    if (currentIndex === -1) return
+    let targetIndex: number
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        targetIndex = currentIndex + 1
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        targetIndex = currentIndex - 1
+        break
+      case 'Home':
+        targetIndex = 0
+        break
+      default: // End
+        targetIndex = controls.length - 1
+        break
+    }
+    // No wrapping at either end.
+    if (targetIndex < 0 || targetIndex >= controls.length) return
+    moveToNode(controls[targetIndex])
   }
 })
 
@@ -700,24 +767,33 @@ function armInitialDelay(): void {
 // Publishes arrivals and advances the tour: a tour-owned scenario completion
 // (session still open) re-arms the 3000ms rest and loops in scenarios order;
 // manual completion does not. On idle/stop lingering pulses reconcile to CSS.
+let prevStateRunning = false
 subscribe(({ arrival, scenarioId, running }) => {
   if (arrival) {
     emitArrivalPulse(arrival)
-    const label = nodeById.get(arrival.nodeId)?.label ?? arrival.nodeId
-    arrivalLive.textContent = `${label} — ${kindLabels[arrival.flowKind]} flow`
   }
 
   if (!running && scenarioId === null) {
     tourScenarioId = null
-    arrivalLive.textContent = ''
     for (const pulse of activePulses.values()) pulse.animation.cancel()
     activePulses.clear()
     nodeControls.forEach((control) => {
       control.querySelector<SVGRectElement>('rect.node-box')?.style.removeProperty('stroke')
       control.querySelector<SVGRectElement>('rect.node-box')?.style.removeProperty('stroke-width')
     })
+    prevStateRunning = false
     return
   }
+
+  // Boundary announcements: rising into running names the scenario started,
+  // falling back to idle within a named scenario names it complete. The idle/stop
+  // branch above returns early, so a stop never produces an extra announcement.
+  if (running && !prevStateRunning && scenarioId != null) {
+    arrivalLive.textContent = `${scenarioNameById.get(scenarioId)} scenario started`
+  } else if (!running && prevStateRunning && scenarioId != null) {
+    arrivalLive.textContent = `${scenarioNameById.get(scenarioId)} scenario complete`
+  }
+  prevStateRunning = running
 
   // Advance the rest-and-loop only for a tour-owned terminal scenario, guarded by
   // interaction-safety (session open) and reduced motion, which blocks the tour.
@@ -727,8 +803,9 @@ subscribe(({ arrival, scenarioId, running }) => {
     tourTimer = window.setTimeout(() => {
       tourTimer = undefined
       tourIndex = (tourIndex + 1) % scenarios.length
-      tourScenarioId = scenarios[tourIndex].id
-      play(scenarios[tourIndex].id)
+      const nextScenarioId = scenarios[tourIndex].id
+      play(nextScenarioId)
+      tourScenarioId = nextScenarioId
     }, REST_MS)
   }
 })
