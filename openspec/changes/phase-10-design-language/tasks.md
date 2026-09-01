@@ -20,9 +20,9 @@
 
 ## 5. Integration verification
 
-- [ ] 5.1 Run `npm run validate` and `npm run build`, then verify the deployed-base-path page at desktop and 380px: idle edges are kind-lit, active edges brighten and fade, nodes retain transitional dashes, the bloom is barely perceptible, the six-entry legend is present, and no console errors or horizontal overflow occur.
-- [ ] 5.2 Verify keyboard traversal, inspector readability, focus visibility, contrast over substrate/surface/surface-2/bloom, and Lighthouse accessibility 100; confirm all flow meaning has a text/non-colour cue and no lit treatment sinks text contrast.
+- [x] 5.1 Run `npm run validate` and `npm run build`, then verify the deployed-base-path page at desktop and 380px: idle edges are kind-lit, active edges brighten and fade, nodes retain transitional dashes, the bloom is barely perceptible, the six-entry legend is present, and no console errors or horizontal overflow occur.
+- [x] 5.2 Verify keyboard traversal, inspector readability, focus visibility, contrast over substrate/surface/surface-2/bloom, and Lighthouse accessibility 100; confirm all flow meaning has a text/non-colour cue and no lit treatment sinks text contrast.
 
 ## 6. Runbook Step 6 v2-lit checkpoint
 
-- [ ] 6.1 Complete the runbook Step 6 design-system checkpoint and the v2 verification prompt: confirm `grep -rE '#[0-9a-fA-F]{3,6}' src/` finds colour literals only in the token block, observe a quiet permanently lit topology after five idle seconds, play off-network access with steel packets/pulses and six legend entries, toggle the OS reduced-motion setting to confirm no tour or travel but colour-step pulses and full usability, report Lighthouse accessibility 100, and tab through the full page.
+- [x] 6.1 Complete the runbook Step 6 design-system checkpoint and the v2 verification prompt: confirm `grep -rE '#[0-9a-fA-F]{3,6}' src/` finds colour literals only in the token block, observe a quiet permanently lit topology after five idle seconds, play off-network access with steel packets/pulses and six legend entries, toggle the OS reduced-motion setting to confirm no tour or travel but colour-step pulses and full usability, report Lighthouse accessibility 100, and tab through the full page.

@@ -220,7 +220,7 @@ function scenarioSummary(scenario: typeof scenarios[number]): string {
 
 function renderScenarioRail(): string {
   const buttons = scenarios.map((scenario) => (
-    `<button class="scenario-button" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario"` +
+    `<button class="scenario-button" type="button" data-scenario-id="${esc(scenario.id)}"` +
     (!scenarioPlayable(scenario) ? ' disabled' : '') + `>` +
     `<span class="scenario-button__name">${esc(scenario.name)}</span>` +
     `<span class="scenario-button__meta">${esc(scenarioSummary(scenario))}</span>` +
@@ -836,7 +836,12 @@ async function init(): Promise<void> {
           button.classList.toggle('scenario-button--running', playing)
           button.setAttribute('data-running', String(playing))
           button.setAttribute('aria-pressed', String(playing))
-          button.setAttribute('aria-label', playing ? `Playing ${name} scenario` : `Play ${name} scenario`)
+          const action = playing ? 'Playing' : 'Play'
+          if (button.classList.contains('scenario-button')) {
+            button.removeAttribute('aria-label')
+          } else {
+            button.setAttribute('aria-label', `${action} ${name} scenario`)
+          }
         }
 
         for (const button of buttons) {
