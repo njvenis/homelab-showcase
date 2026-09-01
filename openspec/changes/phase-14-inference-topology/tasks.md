@@ -1,9 +1,9 @@
 ## 1. Confirm the implementation decisions
 
-- [ ] 1.1 Confirm the four in-use members (D1). Everything below assumes exactly these four have nodes.
-- [ ] 1.2 Confirm which member `discord-task`'s inference hops point at (D2).
-- [ ] 1.3 Confirm the readout's throughput figure now describes which member (D3).
-- [ ] 1.4 Confirm `phase-13c-flow-focus` has NOT yet been applied. If it has, stop — its acceptance criteria hardcode 21 nodes and edges and this change makes both 22.
+- [x] 1.1 Confirm the four in-use members (D1). Everything below assumes exactly these four have nodes.
+- [x] 1.2 Confirm which member `discord-task`'s inference hops point at (D2).
+- [x] 1.3 Confirm the readout's throughput figure now describes which member (D3).
+- [x] 1.4 Confirm `phase-13c-flow-focus` has NOT yet been applied. If it has, stop — its acceptance criteria hardcode 21 nodes and edges and this change makes both 22.
 
 ## 2. Topology nodes
 
