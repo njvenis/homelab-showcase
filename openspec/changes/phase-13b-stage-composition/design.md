@@ -24,7 +24,7 @@ Removing `aria-modal` without revising `closeInspectorButton.focus()` would prod
 
 ## Stacked layout
 
-Pitch 44 against `NODE_HEIGHT` 36 leaves an 8px gutter between node boxes. Boxes not overlapping is not the same as labels not colliding, so acceptance is measured on label bounding boxes with a 6px clearance floor. `NODE_HEIGHT` is not reduced: 36px meets WCAG 2.5.8 AA for touch targets and reducing it would put that at risk to buy vertical space the pitch change already provides.
+Pitch 42 against `NODE_HEIGHT` 36 leaves a 6px gutter between node boxes. Boxes not overlapping is not the same as labels not colliding, so acceptance is measured on label bounding boxes with a 6px clearance floor. `NODE_HEIGHT` is not reduced: 36px meets WCAG 2.5.8 AA for touch targets and reducing it would put that at risk to buy vertical space the pitch change already provides.
 
 ## Risks
 

@@ -1,7 +1,7 @@
 ## 0. Baseline
 
-- [ ] 0.1 Capture screenshots at 390, 768, 1024 and 1440 in four states — idle, scenario running, node selected, reduced motion — into `tests/visual/baseline/`. Commit. Verify sixteen non-empty files.
-- [ ] 0.2 Record the current fold measurement at 1440×900 using the spec's snippet. Note the number in the commit message.
+- [x] 0.1 Capture screenshots at 390, 768, 1024 and 1440 in four states — idle, scenario running, node selected, reduced motion — into `tests/visual/baseline/`. Commit. Verify sixteen non-empty files.
+- [x] 0.2 Record the current fold measurement at 1440×900 using the spec's snippet. Note the number in the commit message.
 
 ## 1. Tokens
 
@@ -37,8 +37,8 @@
 
 ## 5. Responsive and stacked layout
 
-- [ ] 5.1 Change `STACK_ROW_PITCH` to 44, `STACK_HEADER` to 40, `STACK_ZONE_GAP` to 20 in `src/layout.ts`. Leave `STACK_TOP` and `NODE_HEIGHT` alone. Recompute the spec's derivation against the values you set and confirm ≤ 1200.
-- [ ] 5.2 Verify at 390×844 the SVG `viewBox` height is ≤ 1200, all 21 node labels and 3 zone labels are present, and adjacent label bounding boxes clear each other by ≥ 6px.
+- [ ] 5.1 Change `STACK_ROW_PITCH` to 42, `STACK_HEADER` to 40, `STACK_ZONE_GAP` to 20 in `src/layout.ts`. Leave `STACK_TOP` and `NODE_HEIGHT` alone. Recompute the spec's derivation against the values you set and confirm ≤ 1200.
+- [ ] 5.2 Verify at 390×844 the SVG `viewBox` height is ≤ 1200, all `topology.nodes.length` node labels and 3 zone labels are present, and adjacent label bounding boxes clear each other by ≥ 6px.
 - [ ] 5.3 Implement the `(max-height: 480px)` rule. Verify at 844×390 that ≥200px of SVG is in view with no horizontal overflow.
 - [ ] 5.4 Verify the 769–1023px band renders the single-column arrangement.
 
