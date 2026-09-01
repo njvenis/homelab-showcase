@@ -46,5 +46,5 @@ export interface Topology {
 export interface Readout {
   residentModels: number
   briefingTime: string
-  qwenThroughput: string
+  primaryThroughput: string
 }

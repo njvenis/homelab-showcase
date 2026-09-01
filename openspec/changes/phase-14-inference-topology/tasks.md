@@ -30,28 +30,28 @@
 
 ## 5. Scenario prose
 
-- [ ] 5.1 Update `model-swap` in `src/data/flow-content.json` so it names the models actually involved and still states that one member is resident at a time.
-- [ ] 5.2 Update `discord-task` so it names the model its inference hops point at.
-- [ ] 5.3 Verify no entry in `flow-content.json` names a model without a node in `topology.json`, and none describes Nemotron as retired or vLLM as unused.
+- [x] 5.1 Update `model-swap` in `src/data/flow-content.json` so it names the models actually involved and still states that one member is resident at a time.
+- [x] 5.2 Update `discord-task` so it names the model its inference hops point at.
+- [x] 5.3 Verify no entry in `flow-content.json` names a model without a node in `topology.json`, and none describes Nemotron as retired or vLLM as unused.
 
 ## 6. Readout key
 
-- [ ] 6.1 Rename `qwenThroughput` in `src/data/readout.json` and in the `Readout` interface in `src/types.ts`. Verify neither contains the old identifier and `npx tsc --noEmit` passes.
-- [ ] 6.2 Update any reference in `src/main.ts`. Verify the rendered readout still shows a throughput figure, a briefing time and a resident-model count in the same format.
+- [x] 6.1 Rename `qwenThroughput` in `src/data/readout.json` and in the `Readout` interface in `src/types.ts`. Verify neither contains the old identifier and `npx tsc --noEmit` passes.
+- [x] 6.2 Update any reference in `src/main.ts`. Verify the rendered readout still shows a throughput figure, a briefing time and a resident-model count in the same format.
 
 ## 7. Decision record
 
-- [ ] 7.1 Add a `DECISIONS.md` entry: a node is a llama-swap group member, not a runtime and not a model file. State that one artifact may appear as two members under different serving configurations, and that a member not in use is recorded in the `swap` detail rather than drawn.
-- [ ] 7.2 Record the member set change itself: what was replaced, by what, on which runtime.
+- [x] 7.1 Add a `DECISIONS.md` entry: a node is a llama-swap group member, not a runtime and not a model file. State that one artifact may appear as two members under different serving configurations, and that a member not in use is recorded in the `swap` detail rather than drawn.
+- [x] 7.2 Record the member set change itself: what was replaced, by what, on which runtime.
 
 ## 8. Verification
 
-- [ ] 8.1 `npx tsc --noEmit`, `npm run validate`, `npm run build` all pass.
-- [ ] 8.2 Negative test: break an edge `to` reference; confirm validate exits non-zero naming it; revert; confirm clean `git status`.
-- [ ] 8.3 Negative test: point a hop at a nonexistent edge id; confirm validate fails naming it; revert.
-- [ ] 8.4 Negative test: set `reverse: true` on `n8n-resend`; confirm validate fails naming hop and edge; revert.
-- [ ] 8.5 Play all five scenarios on the built site: zero `console.error`.
-- [ ] 8.6 Select each of the four inference nodes and confirm the inspector shows the intended detail, including the measured figures on `ornith-dflash`.
+- [x] 8.1 `npx tsc --noEmit`, `npm run validate`, `npm run build` all pass.
+- [x] 8.2 Negative test: break an edge `to` reference; confirm validate exits non-zero naming it; revert; confirm clean `git status`.
+- [x] 8.3 Negative test: point a hop at a nonexistent edge id; confirm validate fails naming it; revert.
+- [x] 8.4 Negative test: set `reverse: true` on `n8n-resend`; confirm validate fails naming hop and edge; revert.
+- [x] 8.5 Play all five scenarios on the built site: zero `console.error`.
+- [x] 8.6 Select each of the four inference nodes and confirm the inspector shows the intended detail, including the measured figures on `ornith-dflash`.
 - [ ] 8.7 Verify no node detail introduced or changed contains "currently", "achieving", "sustained", "live", "real-time" or "monitoring".
 - [ ] 8.8 Screenshot the `wsl` zone at 1440px and 390px. Nine nodes now occupy a zone sized for eight — confirm no label overlap and no text clipped by the zone's 454px inner width. `NInfer · Ornith-1.5-35B DFlash` is the longest label; report its rendered width.
 - [ ] 8.9 Confirm the diff touches only `src/data/topology.json`, `src/data/scenarios.json`, `src/data/flow-content.json`, `src/data/readout.json`, `src/types.ts`, `DECISIONS.md`, and `src/main.ts` if the key rename required it.

@@ -762,7 +762,7 @@ function renderHeroReadout(): void {
     `nodes ${topology.nodes.length}`,
     `resident models ${readout.residentModels}`,
     `briefing ${readout.briefingTime}`,
-    `qwen ${readout.qwenThroughput}`,
+    `qwen ${readout.primaryThroughput}`,
   ]
   document.querySelector<HTMLParagraphElement>('#hero-readout')!.textContent = parts.join(' · ')
 }
