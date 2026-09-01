@@ -2,7 +2,7 @@
 
 The site already has a strong point of view: a synthetic, inspectable control-plane topology rendered as a lit technical instrument rather than a generic dashboard. The live experience is coherent on desktop, but its most important moments are not yet controlled with enough intention. The hero is visually quieter than the section headings, the topology relies too heavily on hue and dense geometry, autoplay behaves like an uninterruptible screensaver, and node inspection competes with the diagram on narrow screens. The mobile scenario rail also hides important choices behind undiscoverable horizontal overflow.
 
-This implements runbook Step 6's post-v2 refinement checkpoint after `phase-10-design-language` has been verified and archived. It supersedes the indefinite, uncontrolled-tour assumption from that phase; it does not replace the lit visual language or introduce live telemetry.
+This implements runbook Step 6's post-v2 refinement checkpoint after the already archived `phase-10-design-language` change. It supersedes that phase's indefinite, uncontrolled-tour assumption; it does not replace the lit visual language or introduce live telemetry.
 
 ## Problem statement
 
@@ -42,9 +42,9 @@ Visitors should understand, within one calm first viewport, that this is a delib
 
 Call the direction **Instrumented topology**: a dark, editorial technical atlas with a permanently semantic network, a measured status line, and one deliberate active flow. The current Fraunces / IBM Plex Sans / IBM Plex Mono pairing remains. The lit network remains the signature, but idle edges become a little more discriminable through a restrained kind-specific dash grammar. The effect should read as an instrument with signal paths, not as a game board.
 
-Idle edges use the existing derived `--edge-idle-*` colours. Their non-colour grammar is deterministic: control solid, inference long dash, memory dot, health dash-dot, egress short dash, and network long dash-dot. The grammar is a secondary cue and must not imply direction, priority, or live status. Direction remains encoded only by the existing declared edge semantics and packet direction. Focused or hovered edges expose a compact text label derived from their endpoint node labels and kind; no new edge truth is authored.
+Idle edges use the existing derived `--edge-idle-*` colours. Their non-colour grammar is deterministic: control solid, inference long dash, memory dot, health dash-dot, egress short dash, and network long dash-dot. The grammar is a secondary cue and must not imply direction, priority, or live status. Direction remains encoded only by the existing declared edge semantics and packet direction. Hovered edges and selected node/path contexts expose a compact text label derived from their endpoint node labels and kind; no new edge truth is authored and edges do not become additional keyboard focus stops.
 
-The hero gains measured scale and authority, but remains short enough to keep the diagram near the first fold. The scenario controls become a compact playback instrument with one explicit stop/replay action, a step count derived from the hop array, and a caption that explains the selected script. Editorial Flows and Decisions remain prose rows, not cards.
+The hero retains its existing measured scale and authority, but remains short enough to keep the diagram near the first fold. The scenario controls become a compact playback instrument with one explicit stop/replay action, a step count derived from the hop array, and a caption that explains the selected script. Editorial Flows and Decisions remain prose rows, not cards.
 
 ## Design tokens
 
@@ -63,8 +63,8 @@ All colour remains in the existing `:root` token layer. Existing full-bright flo
 | Type | Fraunces, weight 480–540 | hero, section headings, scenario/node titles |
 | Type | IBM Plex Sans, `--text-base: 1.0625rem` | body and interface copy |
 | Type | IBM Plex Mono, `--text-xs` / `--text-sm` | machine values, path readout, step/status metadata; lowercase where it is a value |
-| Type | `--text-hero: clamp(2.75rem, 5vw, 4.25rem)` | hero only; tune against the fold measurements |
-| Type | `--text-2xl: clamp(2rem, 3.2vw, 2.5rem)` | section headings; must remain visually subordinate to the hero |
+| Type | `--text-hero: clamp(3.5rem, 8vw, 5.5rem)` | preserve the existing authoritative hero scale; tune only against the fold measurements |
+| Type | `--text-2xl: 3rem` | existing section-heading scale; must remain visually subordinate to the hero |
 | Space | existing 4px-based `--space-*` scale | all layout rhythm; no one-off spacing values |
 | Space | `--measure-stage: 92rem`, `--measure-wide: 75rem`, `--measure-prose: 34rem` | stage, editorial, and reading measures |
 | Border | `--border-hair: 1px`, `--border-emphasis: 1.5px`, selected/focus stroke `3px` | calm resting structure and clear interaction |
@@ -92,7 +92,7 @@ Under `prefers-reduced-motion: reduce`, packet travel is not shown, topology and
 - Keep documentation counts and any visible derived count consistent with the validated topology; do not hand-maintain a second graph count in the renderer.
 - Keep all node labels in the SVG short enough for the current node rectangle where possible. Full labels, model names, transitional state, zone, kind, and detail remain in the inspector and accessible name.
 - Add deterministic non-colour edge line styles by `FlowKind`, while retaining existing kind hue, glow, markers, bidirectionality, and transitional node dashes. Never use line style to imply direction.
-- Add a focused edge label or equivalent text cue on hover/focus/selected path, derived from existing endpoint labels and kind. Decorative glow paths remain `aria-hidden` and pointer-transparent.
+- Add a derived endpoint/kind text cue on edge hover and selected node/path context. Do not make edges additional keyboard focus stops; preserve the existing one-tab-stop roving node model. Decorative glow paths remain `aria-hidden` and pointer-transparent.
 - Replace heuristic collision risk with a layout-level clearance check and deterministic routing refinement in `src/layout.ts`. Geometry remains computed from the current topology and viewport; no coordinates or route lanes are added to JSON.
 - At stacked widths, use vertical zone growth and explicit clearance rather than truncating technical labels or collapsing distinct edges into one visual line. If the fixed-height budget cannot satisfy clearance, verification must fail rather than silently reduce legibility.
 
@@ -143,7 +143,7 @@ All four widths, plus 320px, 640px, 900px, 1280px, and 1920px, must have zero do
 - Preserve semantic landmarks and the existing one-tab-stop roving keyboard model for nodes.
 - Preserve Enter/Space activation, Arrow/Home/End traversal, Escape dismissal, and focus return for node detail.
 - Make the new stop/replay control a native button with an accessible name and state that describes the action, not its visual styling.
-- Every node and every flow control has a text name. Every flow kind has a written legend meaning. Edge focus/hover cues provide endpoint/kind text so colour is supplementary.
+- Every node and every flow control has a text name. Every flow kind has a written legend meaning. Edge hover/selected-context cues provide endpoint/kind text so colour is supplementary; edges do not become additional keyboard focus stops.
 - Decorative glow paths and packets remain hidden from assistive technology and do not create extra focus stops.
 - Scenario start/completion announcements remain bounded; step/progress status is not emitted once per animation frame to a live region.
 - Meet WCAG 2.2 AA for text, focus, target size, non-text contrast, keyboard operation, and reduced motion. Verify Lighthouse accessibility remains 100 at 390px and 1440px, and run axe at all four target widths.
@@ -175,7 +175,7 @@ All four widths, plus 320px, 640px, 900px, 1280px, and 1920px, must have zero do
 
 ## Implementation sequencing for the local coding agent
 
-1. Finish and verify active `phase-10-design-language`; archive it before applying this proposal. Capture 1440px/1024px/768px/390px and reduced-motion baselines first.
+1. Confirm the archived `phase-10-design-language` baseline and capture 1440px/1024px/768px/390px and reduced-motion baselines before applying this proposal.
 2. Apply token and hierarchy adjustments only; verify fold position, contrast, type scale, and zero overflow before touching playback.
 3. Improve deterministic layout clearance and edge/path presentation; verify node-label bounds, one semantic edge per declared edge, and no false direction cues.
 4. Add the playback status/stop action and bounded one-pass invitation using the existing scenario engine. Verify manual playback, automatic playback, cancellation, completion, and duplicate rail/Flows state.
@@ -211,9 +211,9 @@ All four widths, plus 320px, 640px, 900px, 1280px, and 1920px, must have zero do
 
 ## Explicit risks and rollback considerations
 
-- **Phase collision:** phase 10 is still active and owns the lit token/tour surface. Mitigation: archive it first, record this proposal as the successor, and do not apply both sets of tour rules simultaneously.
-- **Hierarchy regression:** enlarging the hero can push the stage below the fold. Mitigation: use the stated fold measurements as a gate and tune the existing token rather than adding a second hero system.
-- **Line-grammar noise:** six dash patterns may make the map busier or appear directional. Mitigation: keep opacity/substrate restrained, test grayscale and colour-vision simulations, and fall back to focused text cues without changing edge truth.
+- **Phase boundary:** phase 10 is already archived and remains the baseline for the lit token/tour surface. Mitigation: verify that baseline before applying this successor and do not retain both tour-loop rules simultaneously.
+- **Hierarchy regression:** hero sizing can push the stage below the fold. Mitigation: use the stated fold measurements as a gate and tune the existing token rather than adding a second hero system.
+- **Line-grammar noise:** six dash patterns may make the map busier or appear directional. Mitigation: keep opacity/substrate restrained, test grayscale and colour-vision simulations, and retain hover/selected-context text cues without changing edge truth.
 - **Layout changes:** routing improvements can alter screenshots and packet paths. Mitigation: preserve stable edge ids, refresh live packet paths after resize, and reject only true clearance failures; revert layout changes independently if needed.
 - **Playback state complexity:** bounded automatic playback can race manual play or reduced-motion changes. Mitigation: keep one owner for tour state, cancel tour-owned work on interaction, and use the existing engine stop/cleanup path.
 - **Mobile detail occlusion:** a bottom sheet can cover the stage or trap focus. Mitigation: cap at 60vh, keep Close first, preserve Escape/focus return, and test short viewports explicitly.
@@ -239,4 +239,4 @@ The likely implementation touches `src/main.ts`, `src/style.css`, `src/layout.ts
 
 ## Source of Truth
 
-This proposal is the approved-direction contract for phase 15. Existing graph and script truth remains in `src/data/topology.json` and `src/data/scenarios.json`; existing lit palette and motion foundations remain in `docs/v2-lit.md` and the phase-10 design-language change until this change supersedes the tour-loop rule. Requirements are formalized in `specs/premium-experience/spec.md`.
+This proposal is the approved-direction contract for phase 15. Existing graph and script truth remains in `src/data/topology.json` and `src/data/scenarios.json`; existing lit palette and motion foundations remain in `docs/v2-lit.md` and the archived phase-10 design-language change, while phase 15 supersedes phase 10's indefinite tour-loop rule. Requirements are formalized in `specs/premium-experience/spec.md`.

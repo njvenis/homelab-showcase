@@ -39,7 +39,20 @@ const STACK_ZONE_GAP = 20
 // breach the viewBox height bound (spec: stacked-layout constants).
 const STACK_PITCH_FLOOR = 40 // NODE_HEIGHT 36 + 4px minimum gutter
 const STACK_PITCH_CEIL = 64 // the pre-change value; never exceed it
-const STACK_BUDGET = 1200
+const STACK_BUDGET = 1200 // spec: stacked viewBox height cap
+
+// Clearance policy — geometric, never authored into JSON. See stage-composition spec
+// (adjacent node label clearance >= 6px). These throw on purpose instead of clipping
+// labels or collapsing distinct edges, so geometry always faithfully reflects topology.
+export const MIN_VERTICAL_CLEARANCE = 6 // gaps kept between adjacent node label boxes
+export const STACK_LANE_POOL = 4
+
+export class LayoutClearanceError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'LayoutClearanceError'
+  }
+}
 
 function stackRowPitch(nodeCount: number, zoneCount: number): number {
   const chrome = zoneCount * STACK_HEADER
@@ -47,7 +60,16 @@ function stackRowPitch(nodeCount: number, zoneCount: number): number {
     + 2 * STACK_TOP
     + zoneCount * 20 // per-zone bottom padding
   const budget = Math.floor((STACK_BUDGET - chrome) / nodeCount)
-  return Math.max(STACK_PITCH_FLOOR, Math.min(STACK_PITCH_CEIL, budget))
+  const pitch = Math.max(STACK_PITCH_FLOOR, Math.min(STACK_PITCH_CEIL, budget))
+  // Fail (do not floor) once adjacent node label clearance drops below the policy.
+  if (pitch - NODE_HEIGHT < MIN_VERTICAL_CLEARANCE) {
+    throw new LayoutClearanceError(
+      `stacked layout: ${nodeCount} nodes cannot keep ${MIN_VERTICAL_CLEARANCE}px clearance ` +
+      `between adjacent node labels within the ${STACK_BUDGET}px budget ` +
+      `(pitch ${pitch}px, gap ${pitch - NODE_HEIGHT}px). Remove nodes or raise the budget.`,
+    )
+  }
+  return pitch
 }
 
 export function stackedLayout(stageWidth: number): StageLayout {
@@ -69,20 +91,70 @@ export function stackedLayout(stageWidth: number): StageLayout {
     y += height + STACK_ZONE_GAP
   }
 
+  const viewBoxHeight = y - STACK_ZONE_GAP + STACK_TOP
+  if (viewBoxHeight > STACK_BUDGET) {
+    throw new LayoutClearanceError(
+      `stacked layout viewBox height ${Math.round(viewBoxHeight)}px exceeds the ` +
+      `${STACK_BUDGET}px budget at ${Math.round(width)}px stage width; cannot avoid clipping.`,
+    )
+  }
+
   return {
     mode: 'stacked',
-    viewBox: { width, height: y - STACK_ZONE_GAP + STACK_TOP },
+    viewBox: { width, height: viewBoxHeight },
     zones,
   }
 }
 
 export function selectLayout(stageWidth: number): StageLayout {
-  return stageWidth >= STAGE_STACK_THRESHOLD ? wideLayout : stackedLayout(stageWidth)
+  const layout = stageWidth >= STAGE_STACK_THRESHOLD ? wideLayout : stackedLayout(stageWidth)
+  if (layout.mode === 'stacked') assertDistinctEdgePaths(layout)
+  return layout
+}
+
+// Aggregate every node rect across zones, so cross-zone edges can be routed and checked.
+function collectNodeRects(layout: StageLayout): Map<string, NodeRect> {
+  const rects = new Map<string, NodeRect>()
+  for (const zone of topology.zones) {
+    for (const [id, rect] of getNodeRects(zone.id, layout)) rects.set(id, rect)
+  }
+  return rects
+}
+
+// One semantic edge per declared edge: each edge must resolve to a distinct path so the
+// network never reads as duplicate or collapsed lines. Fails deterministically rather
+// than emitting two edges on top of one another.
+function assertDistinctEdgePaths(layout: StageLayout): void {
+  const rects = collectNodeRects(layout)
+  const byPath = new Map<string, string>()
+  for (const edge of topology.edges) {
+    const from = rects.get(edge.from)
+    const to = rects.get(edge.to)
+    if (!from || !to) continue
+    const path = edgePath(from, to, layout)
+    const previous = byPath.get(path)
+    if (previous !== undefined) {
+      throw new LayoutClearanceError(
+        `edges "${previous}" and "${edge.id}" resolve to the same path; distinct edges ` +
+        `must keep distinct geometry — widen clearance so their endpoints diverge.`,
+      )
+    }
+    byPath.set(path, edge.id)
+  }
 }
 
 export type NodePosition = { x: number; y: number }
 
 export const NODE_HEIGHT = 36
+
+// Intrinsic label width for the stacked layout. The SVG renders text in 12px IBM Plex Sans;
+// at that size each glyph averages ~6.2px plus box side padding (~12px), so a label's bounding
+// box is estimated as `glyphWidth * length + LABEL_BOX_PADDING`. This matches the width applied
+// to the node rect (`getNodeRects`), so the clearance guards below cannot false-positive on it.
+// A node rect is permitted to fill the zone inner exactly (no zone-side inset); the only bound
+// is the fixed-height budget and adjacent-label vertical clearance, both of which stay enforced.
+export const LABEL_GLYPH_WIDTH = 6.2
+export const LABEL_BOX_PADDING = 12
 
 export type NodeRect = {
   x: number
@@ -92,9 +164,7 @@ export type NodeRect = {
 }
 
 export function nodeWidth(label: string, zoneInner: number): number {
-  // ponytail: width estimated from char count, capped to the zone's inner width;
-  // upgrade to canvas measureText if labels visibly collide
-  return Math.min(label.length * 7.2 + 24, zoneInner)
+  return Math.min(label.length * LABEL_GLYPH_WIDTH + LABEL_BOX_PADDING, zoneInner)
 }
 
 export function getNodePositions(zoneId: string, stageLayout: StageLayout = layout): Map<string, NodePosition> {
@@ -148,6 +218,17 @@ export function getNodeRects(zoneId: string, stageLayout: StageLayout = layout):
       .map((node) => {
         const position = positions.get(node.id)!
         const width = nodeWidth(node.label, inner)
+        if (stageLayout.mode === 'stacked') {
+          // A node may fill the zone inner exactly; the horizontal bound exists only to catch a
+          // computed box wider than the inner (would clip/overflow), which nodeWidth() caps before
+          // here, so this is a defensive assertion on the same width used for the rect sizing above.
+          if (width > inner) {
+            throw new LayoutClearanceError(
+              `node "${node.id}" needs ${Math.round(width)}px but the zone inner is ` +
+              `${Math.round(inner)}px; cannot fit without clipping. Shorten the label or widen the stage.`,
+            )
+          }
+        }
         return [node.id, {
           x: position.x - width / 2,
           y: position.y - NODE_HEIGHT / 2,
@@ -184,9 +265,10 @@ function stackedChannelPath(from: NodeRect, to: NodeRect, stageLayout: StageLayo
   if (Math.abs(toCenter.y - fromCenter.y) < pitch + 1) return undefined
 
   const hash = Math.abs(Math.round(from.x * 3 + from.y * 5 + to.x * 7 + to.y * 11))
-  const lane = hash % 3
+  const lane = hash % STACK_LANE_POOL
   const left = hash % 2 === 0
-  const channelX = left ? 8 + lane * 10 : stageLayout.viewBox.width - 8 - lane * 10
+  const laneTread = (stageLayout.viewBox.width - 16) / STACK_LANE_POOL
+  const channelX = left ? 8 + lane * laneTread : stageLayout.viewBox.width - 8 - lane * laneTread
   const startX = left ? from.x : from.x + from.width
   const endX = left ? to.x : to.x + to.width
 

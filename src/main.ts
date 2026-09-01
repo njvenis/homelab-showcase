@@ -169,6 +169,11 @@ function renderTopology(stageLayout: StageLayout): string {
   // Each edge's glow + edge paths are wrapped so focus dimming (opacity on the group)
   // never collides with packet.ts mutating the inner path elements. Inner classes,
   // ids, data-edge-id, markers and d are unchanged; no node wrapper is added here.
+  // Derived endpoint/kind text cue for edge hover. Surfaced as a native SVG <title>,
+  // so it is available to assistive tech and shows as the browser tooltip without the
+  // edge ever becoming a keyboard focus stop. Direction stays encoded only by the
+  // edge arrows/markers; this text never implies direction beyond declaring endpoints.
+  const edgeLabelOf = (id: string): string => topology.nodes.find((node) => node.id === id)?.label ?? id
   const edgeEls = topology.edges.map((edge) => {
     const from = nodeRects.get(edge.from)!
     const to = nodeRects.get(edge.to)!
@@ -176,8 +181,11 @@ function renderTopology(stageLayout: StageLayout): string {
     const markers = edge.bidirectional
       ? 'marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"'
       : 'marker-end="url(#arrowhead)"'
+    const cueArrow = edge.bidirectional ? '↔' : '→'
+    const edgeCue = `${edgeLabelOf(edge.from)} ${cueArrow} ${edgeLabelOf(edge.to)} (${kindLabels[edge.kind]} flow)`
     return (
       `<g class="edge-group" data-edge-id="${esc(edge.id)}">` +
+      `<title>${esc(edgeCue)}</title>` +
       `<path class="edge-glow edge--${esc(edge.kind)}" data-edge-id="${esc(edge.id)}" d="${d}" aria-hidden="true" pointer-events="none"/>` +
       `<path class="edge edge--${esc(edge.kind)}" id="${esc(edge.id)}" d="${d}" ${markers}/>` +
       '</g>'
@@ -235,6 +243,22 @@ function renderScenarioRail(): string {
     '<p>Start a real path through the stack.</p>' +
     '</div>' +
     `<div class="scenario-buttons">${buttons.join('')}</div>` +
+    '</nav>'
+  )
+}
+
+function renderPlaybackStatus(): string {
+  // Compact playback status control adjacent to the rail. The action button is a
+  // single native button that shows "Stop playback" while any scenario runs and an
+  // explicit "Replay" invitation once the bounded tour pass has completed; it stays
+  // hidden during the quiet idle/rest window. Step text derives from ScenarioState.
+  return (
+    '<nav class="playback-status" aria-labelledby="playback-status-title">' +
+    '<h2 id="playback-status-title">Playback</h2>' +
+    '<div class="playback-status__controls">' +
+    '<button class="playback-status__action" id="playback-action" type="button" hidden>Stop playback</button>' +
+    '<span class="playback-status__step" id="playback-step" hidden></span>' +
+    '</div>' +
     '</nav>'
   )
 }
@@ -335,23 +359,25 @@ async function init(): Promise<void> {
       '<p class="sr-only" id="scenario-arrival" aria-live="polite"></p>' +
       '</div>' +
       '<div class="control-column">' +
-      (scenarios.length === 0
-        ? '<p class="empty-scenarios">No scenarios are defined.</p>'
-        : renderScenarioRail()) +
-      (scenarios.length > 0
-        ? '<section class="path-readout" aria-labelledby="path-readout-title"><h2 id="path-readout-title"></h2><ol class="path-readout__list"></ol></section>'
-        : '') +
+(scenarios.length === 0
+         ? '<p class="empty-scenarios">No scenarios are defined.</p>'
+         : renderScenarioRail()) +
+       (scenarios.length > 0 ? renderPlaybackStatus() : '') +
+       (scenarios.length > 0
+         ? '<section class="path-readout" aria-labelledby="path-readout-title"><h2 id="path-readout-title"></h2><ol class="path-readout__list"></ol></section>'
+         : '') +
       renderLegend() +
       '<aside class="inspector" id="node-inspector" role="region" aria-labelledby="inspector-title" aria-describedby="inspector-detail" hidden>' +
       '<div class="inspector__topline"><button class="inspector__close" id="inspector-close" type="button" aria-label="Close node inspector">Close</button></div>' +
       '<h2 id="inspector-title"></h2>' +
       '<div class="inspector__status" id="inspector-status" hidden>TRANSITIONAL NODE</div>' +
-      '<dl class="inspector__facts">' +
-      '<div><dt>Zone</dt><dd id="inspector-zone"></dd></div>' +
-      '<div><dt>Kind</dt><dd id="inspector-kind"></dd></div>' +
-      '</dl>' +
-      '<p class="inspector__detail" id="inspector-detail"></p>' +
-      '</aside>' +
+'<dl class="inspector__facts">' +
+       '<div><dt>Zone</dt><dd id="inspector-zone"></dd></div>' +
+       '<div><dt>Kind</dt><dd id="inspector-kind"></dd></div>' +
+       '</dl>' +
+       '<ul class="inspector__edges" id="inspector-edges" aria-label="Incident edges"></ul>' +
+       '<p class="inspector__detail" id="inspector-detail"></p>' +
+       '</aside>' +
       '</div>' +
       '</div>' +
       (scenarios.length === 0 ? '' : renderFlowsSection())
@@ -379,6 +405,9 @@ async function init(): Promise<void> {
     const inspectorKind = document.querySelector<HTMLElement>('#inspector-kind')!
     const inspectorDetail = document.querySelector<HTMLParagraphElement>('#inspector-detail')!
     const inspectorStatus = document.querySelector<HTMLElement>('#inspector-status')!
+    const inspectorEdges = document.querySelector<HTMLElement>('#inspector-edges')!
+    const playbackAction = document.querySelector<HTMLButtonElement>('#playback-action')!
+    const playbackStep = document.querySelector<HTMLElement>('#playback-step')!
     let invokingNode: SVGGElement | null = null
     let selectedNodeId: string | null = null
 
@@ -583,9 +612,21 @@ async function init(): Promise<void> {
       inspectorTitle.textContent = node.label
       inspectorZone.textContent = zone.label
       inspectorKind.textContent = kindLabels[node.kind]
-      inspectorDetail.textContent = node.detail
-      inspectorStatus.hidden = !node.transitional
-      inspector.hidden = false
+inspectorDetail.textContent = node.detail
+       inspectorStatus.hidden = !node.transitional
+       // Selected-node context: derive the connected endpoint/kind cue from the graph so
+       // the meaning of each incident edge is readable text beside kind. No new data;
+       // direction stays declared by the edge, this only labels the connection.
+       inspectorEdges.innerHTML = topology.edges
+         .filter((edge) => edge.from === node.id || edge.to === node.id)
+         .map((edge) => {
+           const from = nodeById.get(edge.from)?.label ?? edge.from
+           const to = nodeById.get(edge.to)?.label ?? edge.to
+           const arrow = edge.bidirectional ? '↔' : '→'
+           return `<li>${esc(from)} ${arrow} ${esc(to)} <span class="inspector__edges-kind">(${kindLabels[edge.kind]} flow)</span></li>`
+         })
+         .join('')
+       inspector.hidden = false
       flowLegend.hidden = true
       // A node selection permanently disarms the idle tour for the session and dims
       // everything else to it. It never calls stop/restart — a running scenario stays
@@ -599,8 +640,9 @@ async function init(): Promise<void> {
       if (inspector.hidden) return
       inspector.hidden = true
       flowLegend.hidden = false
-      nodeControls.get(selectedNodeId ?? '')?.removeAttribute('data-selected')
-      selectedNodeId = null
+nodeControls.get(selectedNodeId ?? '')?.removeAttribute('data-selected')
+       selectedNodeId = null
+       inspectorEdges.innerHTML = ''
       const returnTarget = invokingNode
       invokingNode = null
       // Hand the lone roving tabindex back to the node focus returns to, resetting
@@ -972,18 +1014,22 @@ async function init(): Promise<void> {
     }
 
     // ---- Idle tour ----
-    // Runs only when unbroken since load: 2500ms idle delay, scenarios.json order,
-    // 3000ms rest between scenarios, looping indefinitely. tourScenarioId names the
-    // scenario the tour owns; it is set only right before a tour play() and cleared
-    // on completion/stop, so a manual/programmatic run (which closed the session)
-    // never drives the rest-and-loop. Manual play stays available once the session
-    // ends.
+    // Bounded, data-order invitation pass only: one pass through scenarios.json order
+    // (indices 0..n) after a single 2500ms idle delay, then hold in a stable
+    // idle/completed state with an explicit Replay invitation. There is no rest-and-loop.
+    // Reduced motion never starts the pass. tourScenarioId names the scenario the tour
+    // owns (set right before a tour play()); manual/programmatic runs close the session
+    // so they never drive the tour. tourStarted marks that an automatic pass has begun
+    // this session, so reduced-motion lifts cannot silently relaunch a completed pass;
+    // only the explicit Replay gesture restarts playback.
     const INITIAL_DELAY_MS = 2500
     const REST_MS = 3000
     let tourTimer: number | undefined
     let tourSessionOpen = true
+    let tourStarted = false
     let tourIndex = 0
     let tourScenarioId: string | null = null
+    let replayApplicable = false
 
     function disarmTourTimer(): void {
       if (tourTimer !== undefined) {
@@ -1005,7 +1051,7 @@ async function init(): Promise<void> {
     function onUserInteraction(event: Event): void {
       disarmTourTimer()
       // Node-control interactions (pointer/keyboard/click on a node) close the idle
-      // session and clear ownership so the rest-and-loop can never resume, but they
+      // session and clear ownership so the pass can never resume, but they
       // must NOT stop the active scenario — selection dims edges/nodes, it does not
       // pause or restart playback. Everything else keeps the existing stop-tour path.
       const node = event.target instanceof Element
@@ -1022,19 +1068,93 @@ async function init(): Promise<void> {
 
     function armInitialDelay(): void {
       disarmTourTimer()
-      // No scenarios: leave the idle tour disarmed entirely (never dereference [0]).
-      if (scenarios.length === 0) return
-      if (reducedQuery.matches) return
+      // No scenarios / already launched / reduced motion: never start a second pass.
+      if (scenarios.length === 0 || tourStarted || reducedQuery.matches) return
+      tourStarted = true
       tourTimer = window.setTimeout(() => {
         tourTimer = undefined
-        tourScenarioId = scenarios[tourIndex].id
         play(scenarios[tourIndex].id)
+        // Assign ownership AFTER play(): play()'s internal stop() emits an idle
+        // state whose synchronous subscriber otherwise clears tourScenarioId before
+        // this line runs, leaving the launched scenario unowned and stalling the pass.
+        tourScenarioId = scenarios[tourIndex].id
+        tourIndex += 1
       }, INITIAL_DELAY_MS)
     }
 
+    // Restart the whole pass for an explicit Replay action (not an automatic relaunch —
+    // it deliberately bypasses tourStarted because it is a direct user gesture). After
+    // it the same bounds apply again: one ordered pass, then an explicit Replay invite.
+    function beginPass(): void {
+      disarmTourTimer()
+      replayApplicable = false
+      tourSessionOpen = true
+      tourIndex = 0
+      // Play assigns the engine's scenarioId; assign ownership AFTER so a stop()-emitted
+      // idle state inside play() cannot clear it before this assignment takes effect.
+      play(scenarios[0].id)
+      tourScenarioId = scenarios[0].id
+      tourIndex = 1
+    }
+
+    // Reflect engine state onto the standalone playback-status control: "Stop playback"
+    // while any scenario runs (manual or tour), an explicit "Replay" once the bounded
+    // pass completed, nothing during the quiet idle/rest window. Step N of M derives
+    // from ScenarioState and is shown as visible display text only — not a live region,
+    // so announcements stay bounded to start/completion. data-running mirrors every
+    // other play control so the stopped-state CSS hook applies here too.
+    function updatePlaybackStatus(): void {
+      const { running, totalHops, completedHops } = getState()
+      if (running) {
+        playbackAction.hidden = false
+        playbackAction.textContent = 'Stop playback'
+        playbackAction.setAttribute('aria-pressed', 'true')
+        playbackAction.dataset.running = 'true'
+        if (totalHops > 0) {
+          playbackStep.hidden = false
+          playbackStep.textContent = `Step ${Math.min(completedHops, totalHops)} of ${totalHops}`
+        } else {
+          playbackStep.hidden = true
+        }
+        return
+      }
+      if (replayApplicable) {
+        playbackAction.hidden = false
+        playbackAction.textContent = 'Replay'
+        playbackAction.setAttribute('aria-pressed', 'false')
+        playbackAction.dataset.running = 'false'
+        playbackStep.hidden = true
+        return
+      }
+      // Quiet idle/stop/explicit-rest: explicitly reset the shared stopped-state hooks
+      // before hiding so a stopped control (e.g. post-Stop) reads "stopped", never
+      // retains stale running attrs. Step stays hidden here too.
+      playbackAction.dataset.running = 'false'
+      playbackAction.setAttribute('aria-pressed', 'false')
+      playbackAction.hidden = true
+      playbackStep.hidden = true
+    }
+
+    // Native Stop / Replay control for the bounded pass. Route cancellation through the
+    // existing engine stop() (clears packets, glow, pulses, progress); manual scenario
+    // buttons stay enabled throughout. A completed pass invites an explicit Replay.
+    playbackAction.addEventListener('click', () => {
+      const state = getState()
+      if (state.running) {
+        disarmTourTimer()
+        replayApplicable = false
+        tourSessionOpen = false
+        stop()
+      } else if (replayApplicable) {
+        beginPass()
+      }
+    })
+
     // Publishes arrivals and advances the tour: a tour-owned scenario completion
-    // (session still open) re-arms the 3000ms rest and loops in scenarios order;
-    // manual completion does not. On idle/stop lingering pulses reconcile to CSS.
+    // (session still open) plays the next scenario in data order at most once; once the
+    // pass is exhausted it holds in a stable completed/idle state and invites explicit
+    // Replay instead of looping. Manual completion does not advance. On idle/stop
+    // lingering pulses reconcile to CSS.
     let prevStateRunning = false
     subscribe(({ arrival, scenarioId, running }) => {
       if (arrival) {
@@ -1050,6 +1170,7 @@ async function init(): Promise<void> {
           control.querySelector<SVGRectElement>('rect.node-box')?.style.removeProperty('stroke-width')
         })
         prevStateRunning = false
+        updatePlaybackStatus()
         return
       }
 
@@ -1063,19 +1184,28 @@ async function init(): Promise<void> {
       }
       prevStateRunning = running
 
-      // Advance the rest-and-loop only for a tour-owned terminal scenario, guarded by
+      // Advance the pass only for a tour-owned terminal scenario, guarded by
       // interaction-safety (session open) and reduced motion, which blocks the tour.
       if (!running && scenarioId !== null && tourScenarioId === scenarioId && tourSessionOpen && !reducedQuery.matches) {
         tourScenarioId = null
         disarmTourTimer()
-        tourTimer = window.setTimeout(() => {
-          tourTimer = undefined
-          tourIndex = (tourIndex + 1) % scenarios.length
+        if (tourIndex < scenarios.length) {
           const nextScenarioId = scenarios[tourIndex].id
-          play(nextScenarioId)
-          tourScenarioId = nextScenarioId
-        }, REST_MS)
+          tourTimer = window.setTimeout(() => {
+            tourTimer = undefined
+            play(nextScenarioId)
+            // Assign ownership AFTER play(): play()'s stop() emits idle, and its
+            // subscriber clears tourScenarioId before this line runs — leaving the
+            // launched scenario unowned would stall the pass after one transition.
+            tourScenarioId = nextScenarioId
+            tourIndex += 1
+          }, REST_MS)
+        } else {
+          // Pass exhausted: stable completed/idle; only explicit Replay restarts.
+          replayApplicable = true
+        }
       }
+      updatePlaybackStatus()
     })
 
     // Reduced-motion packets: packet.ts always starts a Web Animation so hop timing
@@ -1126,7 +1256,13 @@ async function init(): Promise<void> {
         startReducedMotionPacketObserver()
       } else {
         stopReducedMotionPacketObserver()
-        if (tourSessionOpen) armInitialDelay()
+        // Lifting reduced motion may re-arm one fresh pass; never relaunch an already
+        // completed one, so only when the automatic pass has not yet begun this session.
+        if (tourSessionOpen && !tourStarted) {
+          tourIndex = 0
+          replayApplicable = false
+          armInitialDelay()
+        }
       }
     })
 

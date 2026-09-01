@@ -6,7 +6,7 @@ The topology is the centrepiece rather than a decorative image. Visitors can run
 
 ## What the page shows
 
-The current topology has three zones—Raspberry Pi 5, workstation/WSL2, and outside the house—with 21 nodes and 21 declared edges. The data describes services including Hermes, OpenCode, llama-swap, NInfer, vLLM, ComfyUI, Mnemosyne, Grafana, Tailscale, n8n, and the external services involved in the transitional briefing pipeline.
+The current topology has three zones—Raspberry Pi 5, workstation/WSL2, and outside the house—with 22 nodes and 22 declared edges. The data describes services including Hermes, OpenCode, llama-swap, NInfer, vLLM, ComfyUI, Mnemosyne, Grafana, Tailscale, n8n, and the external services involved in the transitional briefing pipeline.
 
 The five scenarios are:
 
@@ -22,7 +22,7 @@ The flows are deliberately scripted and synthetic. This is an architectural show
 
 The project uses Vite and TypeScript without a UI framework. The application renders the topology directly into SVG, calculates responsive node positions from the layout rules, and keeps scenario playback in a small state store with subscribers. A scenario is data: its ordered hops refer to edge IDs, each hop carries timing, and `reverse` controls travel direction on a bidirectional edge.
 
-Packets use the browser's Web Animations API and CSS `offset-path`/`offset-distance`, so the animated packet follows the same path that the SVG edge displays. Flow colour has meaning: control, memory, inference, health, egress, and network traffic each use a dedicated CSS custom property. Reduced-motion preferences disable packet travel and use discrete progress while keeping the controls usable.
+Packets use the browser's Web Animations API and CSS `offset-path`/`offset-distance`, so the animated packet follows the same path that the SVG edge displays. Flow colour has meaning: control, memory, inference, health, egress, and network traffic each use a dedicated CSS custom property. The automatic invitation runs once in scenario order after its delay, can be stopped, and never loops without an explicit replay; reduced-motion preferences disable packet travel and the automatic invitation while keeping manual controls usable with discrete progress.
 
 The topology and scenario files are validated before a build. The loader checks IDs, zone membership, edge endpoints, and reverse-direction rules so a malformed data change fails early rather than producing a misleading diagram.
 

@@ -58,7 +58,7 @@
   --text-lg:    1.375rem;   /* standfirst, flow-row lead */
   --text-xl:    2rem;       /* subsection, inspector title */
   --text-2xl:   3rem;       /* section headings — currently 1.35rem */
-  --text-hero:  clamp(3.5rem, 8vw, 5.5rem); /* hero defined per composition capability; .page-header h1 keeps --text-2xl per stage-composition */
+  --text-hero:  clamp(3.5rem, 8vw, 5.5rem); /* authoritative hero; larger than --text-2xl section headings so hero > hierarchy */
 
   /* Space — one scale, used everywhere */
   --space-1:  0.25rem;
@@ -122,10 +122,11 @@ body {
   box-sizing: border-box;
   width: min(100%, var(--measure-wide));
   margin-inline: auto;
-  /* space-12 top / space-8 bottom compress the masthead; the readout→stage step
-     comes from #topology-stage's margin-top (--space-8) below. Trimmed further at
-     768/390/max-height:480 (media queries below). */
-  padding: var(--space-12) var(--space-6) var(--space-8);
+  /* With the hero grown to --text-hero, most of the masthead's vertical budget now
+     sits in the title rather than its padding, so lead/trail are trimmed here and
+     let @media bands shrink further on narrow/short viewports. The readout->stage
+     step still comes from #topology-stage's margin-top (--space-8) below. */
+  padding: var(--space-8) var(--space-6) var(--space-6);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -134,7 +135,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: var(--text-2xl);
+  font-size: var(--text-hero);
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 0.98;
@@ -143,9 +144,9 @@ body {
 
 .page-header p {
   max-width: var(--measure-prose);
-  margin: var(--space-4) 0 0;
+  margin: var(--space-3) 0 0;
   color: var(--ink-muted);
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
   text-align: start;
   line-height: 1.45;
 }
@@ -219,24 +220,28 @@ body {
     }
 }
 
-/* Fold at 1024×768 measured above target (SVG top ~338 vs ≤300): this band spends
-   an extra --space-8 in the stage's control-column margin-top plus the masthead's
-   base space-8 bottom padding before the diagram, so it sits below the fold here
-   even though ≥1440 fits comfortably (338 ≤ 340). Narrowly bounded to 1024–1439px
-   so the desktop two-column layout and the ≥1440 baseline stay as they were:
-   shave one token off the header bottom padding and clear both top offsets, which
-   pulls the SVG to ~298 while keeping the control column flush with the stage.
-   Selectors are prefixed .interaction-shell so they outrank the base declarations
-   at any source position. */
+/* Fold compression at 1024–1439px (tablets). The hero is now large enough that its
+   tall two-line block plus the capped standfirst pushed the topology below the 300px
+   target here; trim the masthead rhythm, let the standfirst use the full wide header
+   width so it collapses to one line, and clear both stage/control margins. */
 @media (min-width: 1024px) and (max-width: 1439px) {
-  .page-header {
-    padding: var(--space-12) var(--space-6) var(--space-6);
-  }
+   .page-header {
+     padding: var(--space-6) var(--space-6) var(--space-4);
+   }
 
-  .interaction-shell .topology-stage,
-  .interaction-shell .control-column {
-    margin-top: 0;
-  }
+   .interaction-shell .topology-stage,
+   .interaction-shell .control-column {
+     margin-top: 0;
+   }
+}
+
+/* Wide viewports (≥769px): the header is far wider than --measure-prose, so the
+   standfirst over-wraps unnecessarily. Drop the cap there so it reads one line and
+   the masthead stays compact; the base cap still governs phone widths. */
+@media (min-width: 769px) {
+   .page-header p {
+     max-width: none;
+   }
 }
 
 .sr-only {
@@ -336,6 +341,17 @@ padding: 0;
   box-shadow: inset 3px 0 0 var(--flow-control);
 }
 
+/* Stopped/reset state — mirrored as a data attribute on every play-type control
+   (rail, Flows row, and any discrete stop/replay control the playback lane adds).
+   Reverts the running accent so idle never reads as active; hue alone carries no
+   meaning here. */
+button[data-running='false'],
+button[aria-pressed='false'] {
+  border-color: var(--rule);
+  background: var(--surface);
+  box-shadow: none;
+}
+
 .scenario-button__name {
   font-size: var(--text-sm);
   font-weight: 600;
@@ -376,12 +392,13 @@ padding: 0;
   background-color: var(--flow-control);
 }
 
-/* --space-8 before the stage lives here as the stage's own margin-top; it stacks
-    on the shell's bottom padding (--space-12) within the nested shell. */
+/* --space-6 before the stage lives here as the stage's own margin-top; it stacks
+     on the shell's bottom padding (--space-12) within the nested shell. Trimmed in
+     the fold bands above so the large hero keeps the diagram near the first fold. */
 .topology-stage {
   position: relative;
   isolation: isolate;
-  margin-top: var(--space-8);
+  margin-top: var(--space-6);
 }
 
 /* Single restrained two-hue radial bloom (control + infer are the two dominant
@@ -664,31 +681,32 @@ padding: 0;
 
   /* Scenario rail rides above the diagram; the flow key and inspector remain
      below it in natural document order. */
-  .scenario-rail {
-    order: -1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
-  }
+.scenario-rail {
+     order: -1;
+     display: flex;
+     flex-direction: column;
+     gap: var(--space-4);
+   }
+}
 
-  /* Horizontal scroll rail. Proximity (never mandatory): mandatory snapping can
-     leave a keyboard-focused entry scrolled only partway into view. Each entry's
-     scroll-margin-inline holds breathing room at the snap edge so its focus ring
-     stays inside the rail. */
-  .scenario-buttons {
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    overscroll-behavior-inline: contain;
-    -webkit-overflow-scrolling: touch;
-  }
+/* Tablet horizontal carousel (769–1023px). Below 769px the rail drops to the
+   discoverable wrapping grid defined in the max-width:900px block, so five choices
+   are never hidden behind an unexplained horizontal gesture at tablet/phone. */
+@media (min-width: 769px) and (max-width: 1023px) {
+   .scenario-buttons {
+     display: flex;
+     flex-direction: row;
+     overflow-x: auto;
+     scroll-snap-type: x proximity;
+     overscroll-behavior-inline: contain;
+     -webkit-overflow-scrolling: touch;
+   }
 
-  .scenario-button {
-    flex: 0 0 auto;
-    scroll-snap-align: start;
-    scroll-margin-inline: var(--space-4);
-  }
+   .scenario-button {
+     flex: 0 0 auto;
+     scroll-snap-align: start;
+     scroll-margin-inline: var(--space-4);
+   }
 }
 
 .edge {
@@ -698,15 +716,24 @@ padding: 0;
 }
 
 /* Per-kind idle colors declared after .edge so they win at equal specificity:
-   an idle edge shows its semantic kind hue, falling back to --rule only when
-   unkinded. Active edges are brightened inline by packet.ts and return to this
-   color once it clears the stroke. */
+    an idle edge shows its semantic kind hue, falling back to --rule only when
+    unkinded. Active edges are brightened inline by packet.ts and return to this
+    color once it clears the stroke. */
 .edge--control { stroke: var(--edge-idle-control); }
 .edge--memory { stroke: var(--edge-idle-memory); }
 .edge--infer { stroke: var(--edge-idle-infer); }
 .edge--health { stroke: var(--edge-idle-health); }
 .edge--egress { stroke: var(--edge-idle-egress); }
 .edge--network { stroke: var(--edge-idle-network); }
+
+/* Per-kind idle dash grammar — a deterministic SECONDARY cue beside hue, added to
+   the base edge only (.base .edge) so the shared-edge-glow keeps its solid colour.
+   Six distinct patterns; none encodes direction (arrows still carry direction). */
+.edge.edge--infer { stroke-dasharray: 12px 6px; } /* infer: long dash */
+.edge.edge--memory { stroke-dasharray: 2px 6px; } /* memory: dots */
+.edge.edge--health { stroke-dasharray: 10px 4px 2px 4px; } /* health: dash-dot */
+.edge.edge--egress { stroke-dasharray: 4px 5px; } /* egress: short dash */
+.edge.edge--network { stroke-dasharray: 16px 5px 3px 5px; } /* network: long dash-dot */
 
 /* Non-semantic, pointer-transparent duplicate path per edge: a low-alpha same-hue
    glow. Shares the base's kind class so it inherits the kind idle stroke, then
@@ -815,13 +842,13 @@ padding: 0;
   transition: opacity var(--motion-base) var(--ease-out);
 }
 
-/* Flat-size fallback so the title does not balloon at phone widths; max-width
-    tightens from 16ch to ~14ch. Surrounding padding/margins already come from
-    tokens, so nothing raw leaks here. */
+/* Flat-line cap so the scaled hero does not over-wrap at phone widths;
+     max-width tightens from 16ch to ~14ch. The title intentionally keeps its
+     authoritative --text-hero scale here so it stays larger than the 48px
+     --text-2xl section headings (a size reset would invert the hero > hierarchy). */
 @media (max-width: 640px) {
   .page-header h1 {
     max-width: 14ch;
-    font-size: var(--text-xl);
   }
 }
 
@@ -842,16 +869,17 @@ padding: 0;
     padding: var(--space-6);
   }
 
-  /* Bottom sheet: anchored to the viewport bottom and capped at 18vh so its top
-      edge sits below the SVG's vertical midpoint (leaving the stage visible),
-      with contained overscroll so pulling inside the sheet never drags the page
-      behind it. 18vh < 60vh keeps the sheet smaller than the spec ceiling. */
+/* Bottom sheet: anchored to the viewport bottom, capped at min(60vh, …) so its
+       top sits below the SVG midpoint and the stage stays visibly present above.
+       Content scrolls internally; overscroll is contained so pulling inside the
+       sheet never drags the page behind it. 60vh is the spec ceiling — taller would
+       occlude the topology rather than reveal it. */
   .inspector {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    max-height: 18vh;
+    max-height: min(60vh, calc(100vh - var(--space-8)));
     overflow-y: auto;
     overscroll-behavior: contain;
     border-radius: var(--radius-md) var(--radius-md) 0 0;

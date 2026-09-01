@@ -4,7 +4,7 @@
 
 `homelab-showcase` is a static Vite/TypeScript site with direct SVG rendering, computed layout, JSON-backed topology/scenarios, and native Web Animations API playback. The current live page already expresses a restrained “lit” direction: semantic idle hues, faint glow, editorial prose, a scenario rail, path readout, and accessible node inspection. The refinement must improve comprehension and control without turning the fixed architecture into a dashboard or pretending synthetic flows are telemetry.
 
-The active `phase-10-design-language` change must be verified and archived before this design is applied. This design intentionally supersedes only its indefinite idle-tour loop; its palette, glow, arrival, progress, and reduced-motion foundations carry forward.
+The archived `phase-10-design-language` change is the baseline for this design. This design intentionally supersedes only its indefinite idle-tour loop; its palette, glow, arrival, progress, and reduced-motion foundations carry forward.
 
 ## Goals / Non-Goals
 
@@ -27,11 +27,11 @@ The active `phase-10-design-language` change must be verified and archived befor
 
 ### 1. Instrumented topology, not dashboard chrome
 
-Keep the dark lit palette, Fraunces/Plex type system, prose rows, and stage bloom. Increase hero authority and reduce section-heading competition with existing token consumers; do not introduce a new visual system.
+Keep the dark lit palette, Fraunces/Plex type system, prose rows, and stage bloom. Preserve the current authoritative hero scale and ensure section headings remain subordinate through existing token consumers; do not introduce a new visual system.
 
 ### 2. Hue plus a secondary cue
 
-Keep the six full hues and derived idle hues as the semantic colour source. Add deterministic per-kind stroke patterns and a derived endpoint/kind label on edge hover/focus/selection. The patterns must not encode direction. If visual testing shows the six patterns add noise, retain the text cue and reduce idle pattern contrast rather than inventing a different edge meaning.
+Keep the six full hues and derived idle hues as the semantic colour source. Add deterministic per-kind stroke patterns and a derived endpoint/kind label on edge hover and selected node/path context. Edges do not become additional keyboard focus stops; the existing one-tab-stop roving node model remains. The patterns must not encode direction. If visual testing shows the six patterns add noise, retain the text cue and reduce idle pattern contrast rather than inventing a different edge meaning.
 
 ### 3. One bounded invitation pass
 
@@ -56,8 +56,8 @@ Loading, empty, error, hover, focus, selected, running, stopped, disabled, and r
 ## Risks / Trade-offs
 
 - More visible edge grammar can reduce the quietness of the lit map; grayscale and colour-vision review is required.
-- A larger hero can regress fold targets; browser measurements are a hard gate.
-- A bounded tour changes current phase-10 behavior; it is intentionally called out as a supersession and must not be merged while phase 10 remains active.
+- Hero sizing can regress fold targets; browser measurements are a hard gate.
+- A bounded tour supersedes the archived phase-10 behavior; it is intentionally called out as a successor rule and must not be implemented alongside the old indefinite loop.
 - Stacked geometry may need more height for clearance; failing a bound is preferable to clipping or lying about edges.
 - A phone sheet improves detail readability but can occlude stage content; cap height, put Close first, and test 390px plus short viewports.
 - Stop/replay state can race reduced-motion changes; one tour owner and engine cleanup prevent stale packets/progress.
@@ -70,7 +70,7 @@ Determinism is binding: no `Math.random()` in animation paths, no random layout,
 
 ## Migration Plan
 
-1. Finish, verify, and archive `phase-10-design-language`; capture current screenshots and accessibility results.
+1. Confirm the archived `phase-10-design-language` baseline; capture current screenshots and accessibility results.
 2. Tune hero/section consumers and playback control tokens; verify fold, contrast, and no overflow.
 3. Refine computed node clearance and channel paths; verify stable ids, edge count, label bounds, and packet re-layout.
 4. Add one-pass tour ownership and Stop/Replay controls; verify manual/automatic/reduced-motion boundaries and bounded announcements.

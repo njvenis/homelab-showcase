@@ -115,11 +115,12 @@ Propose the v2 design language change. Scope:
    dominant hues in the topology, felt not seen. No dot grids, no vignettes.
 
 5. IDLE TOUR. On load, after a 2500ms delay, scenarios auto-play in
-   scenarios.json order with a 3000ms rest between them, looping indefinitely.
-   Any user interaction — scenario button, node click, keypress, or a play
-   control — stops the tour permanently for the session; it never resumes. The
-   running scenario button shows the same running treatment during the tour as
-   it does for manual play. Under prefers-reduced-motion the tour never starts.
+   scenarios.json order with a 3000ms rest between them, then hold in a stable
+   completed/idle state. A native Stop playback control cancels the active run;
+   an explicit Replay is required to start another automatic pass. Any user
+   interaction — scenario button, node click, keypress, or a play control —
+   disarms the invitation permanently for the session, while manual playback
+   remains available. Under prefers-reduced-motion the invitation never starts.
    The page must arrive alive: the idle state is what every first-time visitor
    judges it by.
 

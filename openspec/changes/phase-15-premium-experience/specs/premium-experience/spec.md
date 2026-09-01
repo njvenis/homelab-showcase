@@ -27,7 +27,7 @@ The page SHALL render the hero headline larger than section headings, retain the
 
 ### Requirement: Flow kinds have colour and non-colour meaning
 
-Each of the six `FlowKind` values SHALL retain its existing semantic hue and expose a deterministic secondary cue through line grammar or focused text. Secondary cues SHALL NOT imply edge direction.
+Each of the six `FlowKind` values SHALL retain its existing semantic hue and expose a deterministic secondary cue through line grammar or hover/selected-context text. Secondary cues SHALL NOT imply edge direction.
 
 #### Scenario: All kinds are explainable
 
@@ -35,10 +35,11 @@ Each of the six `FlowKind` values SHALL retain its existing semantic hue and exp
 - **THEN** the legend names all six flow kinds and their meanings
 - **AND** each kind has a documented non-colour or text cue
 
-#### Scenario: Edge focus exposes text
+#### Scenario: Edge context exposes text
 
-- **GIVEN** a visitor focuses or selects an edge-equivalent node/path context
+- **GIVEN** a visitor hovers an edge or selects an edge-equivalent node/path context
 - **THEN** the connected endpoint labels and flow kind are available as text
+- **AND** edges do not become independent keyboard focus stops; the existing roving node model remains the only topology focus model
 - **AND** decorative glow paths create no additional semantic or focus element
 
 ### Requirement: Automatic playback is bounded and controllable
