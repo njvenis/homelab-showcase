@@ -47,7 +47,7 @@ rules:
     - Every animation requirement must state its reduced-motion behaviour
   design:
     - Name any new dependency explicitly and justify it, or state that none is added
-    - Note determinism: no Math.random() in animation paths
+    - "Note determinism: no Math.random() in animation paths"
   tasks:
     - Keep tasks small enough to complete without clearing context
     - Last task is always the step checkpoint from the runbook

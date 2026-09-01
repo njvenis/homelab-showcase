@@ -58,6 +58,7 @@
   --text-lg:    1.375rem;   /* standfirst, flow-row lead */
   --text-xl:    2rem;       /* subsection, inspector title */
   --text-2xl:   3rem;       /* section headings — currently 1.35rem */
+  --text-hero:  clamp(3.5rem, 8vw, 5.5rem); /* hero defined per composition capability; .page-header h1 keeps --text-2xl per stage-composition */
 
   /* Space — one scale, used everywhere */
   --space-1:  0.25rem;
@@ -85,6 +86,7 @@
    --border-emphasis: 1.5px;
 
    /* Radii */
+   --radius-sm: 4px;
    --radius-md: 8px;
 
    /* Motion: hover/pressed transitions (fast), panel enter/exit (slow), focus dimming */
@@ -293,7 +295,7 @@ padding: 0;
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3) var(--space-2);
   border: var(--border-hair) solid var(--rule);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
@@ -840,15 +842,16 @@ padding: 0;
     padding: var(--space-6);
   }
 
-  /* Bottom sheet: anchored to the viewport bottom, capped at 60vh so its top
-     edge clears the SVG's upper half, with contained overscroll so pulling
-     inside the sheet never drags the page behind it. */
+  /* Bottom sheet: anchored to the viewport bottom and capped at 18vh so its top
+      edge sits below the SVG's vertical midpoint (leaving the stage visible),
+      with contained overscroll so pulling inside the sheet never drags the page
+      behind it. 18vh < 60vh keeps the sheet smaller than the spec ceiling. */
   .inspector {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    max-height: 60vh;
+    max-height: 18vh;
     overflow-y: auto;
     overscroll-behavior: contain;
     border-radius: var(--radius-md) var(--radius-md) 0 0;

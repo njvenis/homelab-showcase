@@ -22,6 +22,82 @@ This change is visual-only-neutral. It introduces no design change, no token, no
 
 ## MODIFIED Requirements
 
+### Requirement: Nodes are keyboard reachable and visibly focused
+
+**Current behaviour.** Every node renders as `<g class="node-control" … role="button" tabindex="0">`. With 21 nodes, traversing past the diagram by keyboard requires 21 Tab presses.
+
+**Required behaviour.** Exactly one node SHALL carry `tabindex="0"` at any time; all others SHALL carry `tabindex="-1"`. Arrow keys move focus between nodes in document order and update which node holds `tabindex="0"`. Home and End move to the first and last node. Enter or Space opens the node detail. The existing `role="button"`, `aria-label`, `data-node-id`, `data-node-kind` and `focusable` attributes are unchanged.
+
+Arrow-key handling SHALL be bound on the node layer, not on `document`, so it does not intercept arrow keys elsewhere on the page.
+
+#### Scenario: One tab stop
+
+- **GIVEN** the page at 1440px
+- **WHEN** Tab is pressed until focus enters the SVG, then Tab is pressed once more
+- **THEN** focus leaves the SVG entirely rather than moving to a second node
+- **AND** `document.querySelectorAll('[data-node-id][tabindex="0"]').length` is 1
+
+#### Scenario: Arrow keys traverse every node
+
+- **GIVEN** focus on the first node
+- **WHEN** ArrowRight is pressed `topology.nodes.length - 1` times
+- **THEN** each node receives focus exactly once in document order, for all `topology.nodes.length` of them
+- **AND** each shows a visible focus indicator
+- **AND** after each move exactly one node carries `tabindex="0"`
+
+#### Scenario: Home and End
+
+- **GIVEN** focus on any node
+- **WHEN** End is pressed, then Home
+- **THEN** focus moves to the last node, then the first
+
+#### Scenario: Arrow keys elsewhere are unaffected
+
+- **GIVEN** focus on a scenario button or a page link
+- **WHEN** ArrowRight is pressed
+- **THEN** node focus does not change
+
+
+#### Scenario: Keyboard traversal reaches every node
+
+- **GIVEN** a visitor navigates the page using a keyboard
+- **WHEN** they advance focus through the topology controls
+- **THEN** every rendered topology node can receive focus and the focused node has a visible focus ring
+
+---
+
+### Requirement: Inspector dismissal restores invoking focus
+
+**Current behaviour.** Opening the inspector moves focus to its close button (`closeInspectorButton.focus()`), which is correct for a modal dialog.
+
+**Required behaviour.** Focus SHALL return to the node that opened the detail when it is dismissed by Escape or by the close control. Escape SHALL dismiss the detail from anywhere within it or from the node layer.
+
+Opening behaviour is unchanged in this change — the element is still a modal dialog here. Focus-on-open is revised in `phase-13b-stage-composition`, where the element stops being modal.
+
+#### Scenario: Escape returns focus
+
+- **GIVEN** detail opened from node `mnemosyne` by keyboard
+- **WHEN** Escape is pressed
+- **THEN** detail is dismissed and `document.activeElement` is the `mnemosyne` node
+- **AND** that node carries `tabindex="0"`
+
+#### Scenario: Close control returns focus
+
+- **GIVEN** detail opened from node `swap`
+- **WHEN** the close control is activated by keyboard
+- **THEN** `document.activeElement` is the `swap` node
+
+
+#### Scenario: Escape closes inspector and restores focus
+
+- **GIVEN** a node opened the inspector and focus is within the open inspector
+- **WHEN** the visitor presses Escape
+- **THEN** the inspector closes, the canvas is no longer dimmed, and focus returns to the node that opened it
+
+---
+
+## ADDED Requirements
+
 ### Requirement: Arrival announcements are bounded to one per scenario
 
 **Current behaviour.** The `subscribe` handler writes `arrivalLive.textContent` on every packet arrival. `discord-task` fires 17 arrivals in 6.43 seconds, and the idle tour loops all five scenarios indefinitely from page load, so a screen reader receives continuous unstoppable announcement.
@@ -63,68 +139,6 @@ This change is visual-only-neutral. It introduces no design change, no token, no
 - **AND** its rendered text still contains the briefing time, resident-model count and throughput values
 
 ---
-
-### Requirement: The node layer is a single tab stop with roving focus
-
-**Current behaviour.** Every node renders as `<g class="node-control" … role="button" tabindex="0">`. With 21 nodes, traversing past the diagram by keyboard requires 21 Tab presses.
-
-**Required behaviour.** Exactly one node SHALL carry `tabindex="0"` at any time; all others SHALL carry `tabindex="-1"`. Arrow keys move focus between nodes in document order and update which node holds `tabindex="0"`. Home and End move to the first and last node. Enter or Space opens the node detail. The existing `role="button"`, `aria-label`, `data-node-id`, `data-node-kind` and `focusable` attributes are unchanged.
-
-Arrow-key handling SHALL be bound on the node layer, not on `document`, so it does not intercept arrow keys elsewhere on the page.
-
-#### Scenario: One tab stop
-
-- **GIVEN** the page at 1440px
-- **WHEN** Tab is pressed until focus enters the SVG, then Tab is pressed once more
-- **THEN** focus leaves the SVG entirely rather than moving to a second node
-- **AND** `document.querySelectorAll('[data-node-id][tabindex="0"]').length` is 1
-
-#### Scenario: Arrow keys traverse every node
-
-- **GIVEN** focus on the first node
-- **WHEN** ArrowRight is pressed `topology.nodes.length - 1` times
-- **THEN** each node receives focus exactly once in document order, for all `topology.nodes.length` of them
-- **AND** each shows a visible focus indicator
-- **AND** after each move exactly one node carries `tabindex="0"`
-
-#### Scenario: Home and End
-
-- **GIVEN** focus on any node
-- **WHEN** End is pressed, then Home
-- **THEN** focus moves to the last node, then the first
-
-#### Scenario: Arrow keys elsewhere are unaffected
-
-- **GIVEN** focus on a scenario button or a page link
-- **WHEN** ArrowRight is pressed
-- **THEN** node focus does not change
-
----
-
-### Requirement: Focus returns to the invoking node
-
-**Current behaviour.** Opening the inspector moves focus to its close button (`closeInspectorButton.focus()`), which is correct for a modal dialog.
-
-**Required behaviour.** Focus SHALL return to the node that opened the detail when it is dismissed by Escape or by the close control. Escape SHALL dismiss the detail from anywhere within it or from the node layer.
-
-Opening behaviour is unchanged in this change — the element is still a modal dialog here. Focus-on-open is revised in `phase-13b-stage-composition`, where the element stops being modal.
-
-#### Scenario: Escape returns focus
-
-- **GIVEN** detail opened from node `mnemosyne` by keyboard
-- **WHEN** Escape is pressed
-- **THEN** detail is dismissed and `document.activeElement` is the `mnemosyne` node
-- **AND** that node carries `tabindex="0"`
-
-#### Scenario: Close control returns focus
-
-- **GIVEN** detail opened from node `swap`
-- **WHEN** the close control is activated by keyboard
-- **THEN** `document.activeElement` is the `swap` node
-
----
-
-## ADDED Requirements
 
 ### Requirement: No regression to existing keyboard and audit baselines
 
