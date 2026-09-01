@@ -58,7 +58,6 @@
   --text-lg:    1.375rem;   /* standfirst, flow-row lead */
   --text-xl:    2rem;       /* subsection, inspector title */
   --text-2xl:   3rem;       /* section headings — currently 1.35rem */
-  --text-hero:  clamp(3.5rem, 8vw, 5.5rem);
 
   /* Space — one scale, used everywhere */
   --space-1:  0.25rem;
@@ -76,6 +75,23 @@
   --measure-prose: 34rem;    /* ~64ch, for anything read as sentences */
   --measure-wide:  75rem;    /* controls, legend, flow rows */
   --measure-stage: 92rem;    /* diagram only — it should exceed everything */
+
+   /* Layout columns for the two-column stage composition (desktop, ≥1024px) */
+   --measure-control: 18rem;
+   --measure-stage-min: 36rem;
+
+   /* Borders: at-rest edges and scenario-entry outlines -> emphasis on hover/focus */
+   --border-hair: 1px;
+   --border-emphasis: 1.5px;
+
+   /* Radii */
+   --radius-md: 8px;
+
+   /* Motion: hover/pressed transitions (fast), panel enter/exit (slow) */
+   --motion-fast: 120ms;
+   --motion-slow: 400ms;
+   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html {
@@ -96,9 +112,10 @@ body {
   box-sizing: border-box;
   width: min(100%, var(--measure-wide));
   margin-inline: auto;
-  /* --space-32 on top and bottom frames the title; the readout→stage step comes
-     from #topology-stage's margin-top (--space-24) below. */
-  padding: var(--space-32) var(--space-6) var(--space-32);
+  /* space-12 top / space-8 bottom compress the masthead; the readout→stage step
+     comes from #topology-stage's margin-top (--space-8) below. Trimmed further at
+     768/390/max-height:480 (media queries below). */
+  padding: var(--space-12) var(--space-6) var(--space-8);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -107,7 +124,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: Fraunces, Georgia, serif;
-  font-size: var(--text-hero);
+  font-size: var(--text-2xl);
   font-weight: 500;
   letter-spacing: -0.025em;
   line-height: 0.98;
@@ -116,7 +133,7 @@ body {
 
 .page-header p {
   max-width: var(--measure-prose);
-  margin: var(--space-16) 0 0;
+  margin: var(--space-4) 0 0;
   color: var(--ink-muted);
   font-size: var(--text-lg);
   text-align: start;
@@ -139,17 +156,86 @@ body {
   width: min(100%, var(--measure-stage));
   margin: 0 auto;
   /* Leading cadence now lives entirely in the header; shell contributes only its
-     base and horizontal padding around the nested stage. */
+      base and horizontal padding around the nested stage. */
   padding: 0 var(--space-6) var(--space-12);
+}
+
+/* Two-column composition at desktop widths (>=1024px). Moving the controls into
+   the right-hand column lets the stage recover roughly 300px of vertical room.
+   Width arithmetic at 1024px: inner = 1024 - 2*space-6 - space-8 = 944px; the
+   stage column = 944 - 288 (--measure-control) = 656px, which is >= 576px
+   (--measure-stage-min), so two tracks fit. --measure-stage-min is the track's
+   floor, so if total width ever cannot hold both it falls back to single column
+   with the control content below the stage (already the sub-1024 layout). Above
+   --measure-stage (92rem) the base width rule caps and centres the shell, which
+   is also the >=1440 behaviour, so no separate wide declaration is required. The
+   control column mirrors the stage's own space-8 margin-top so its heading sits
+   flush with the diagram rather than above it. */
+@media (min-width: 1024px) {
+  .interaction-shell {
+    display: grid;
+    grid-template-columns: minmax(var(--measure-stage-min), 1fr) var(--measure-control);
+    gap: var(--space-8);
+  }
+
+  .control-column {
+    margin-top: var(--space-8);
+  }
+
+/* The rail and flow key selectors also have equal-specificity base
+      definitions later in this file, so these carry an extra .interaction-shell
+      ancestor to win. Reflow them into the 18rem gutter instead of letting their
+      wide grids grow past it: each heading sits over its list, the five scenario
+      buttons collapse to a single column, and the six-item legend condenses to
+      two columns with items set min-width:0 so the meanings wrap rather than
+      spilling sideways. */
+   .interaction-shell .scenario-rail,
+   .interaction-shell .flow-legend {
+     display: block;
+   }
+
+   .interaction-shell .scenario-buttons {
+     display: grid;
+     grid-template-columns: 1fr;
+     gap: var(--space-2);
+   }
+
+   .interaction-shell .flow-legend ul {
+     grid-template-columns: 1fr 1fr;
+   }
+
+.interaction-shell .legend-entry {
+      min-width: 0;
+    }
+}
+
+/* Fold at 1024×768 measured above target (SVG top ~338 vs ≤300): this band spends
+   an extra --space-8 in the stage's control-column margin-top plus the masthead's
+   base space-8 bottom padding before the diagram, so it sits below the fold here
+   even though ≥1440 fits comfortably (338 ≤ 340). Narrowly bounded to 1024–1439px
+   so the desktop two-column layout and the ≥1440 baseline stay as they were:
+   shave one token off the header bottom padding and clear both top offsets, which
+   pulls the SVG to ~298 while keeping the control column flush with the stage.
+   Selectors are prefixed .interaction-shell so they outrank the base declarations
+   at any source position. */
+@media (min-width: 1024px) and (max-width: 1439px) {
+  .page-header {
+    padding: var(--space-12) var(--space-6) var(--space-6);
+  }
+
+  .interaction-shell .topology-stage,
+  .interaction-shell .control-column {
+    margin-top: 0;
+  }
 }
 
 .sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
+padding: 0;
+   margin: calc(-1 * var(--border-hair));
+   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
@@ -198,18 +284,34 @@ body {
   justify-content: center;
   gap: var(--space-1);
   padding: var(--space-2) var(--space-3) var(--space-2);
-  border: 1px solid var(--rule);
+  border: var(--border-hair) solid var(--rule);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
   font: inherit;
   text-align: left;
-  transition: border-color 160ms ease, background-color 160ms ease;
+  transition: border-width var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 }
 
+/* Raises border weight only (hair -> emphasis): never color, transform,
+   shadow or scale. --border-emphasis is the phase-13b hover accent. */
 .scenario-button:hover {
-  border-color: var(--ink-muted);
+  border-width: var(--border-emphasis);
+}
+
+/* Press steps the fill up one shade over --motion-fast. Kept to background so
+   the running-state inset indicator (its border + box-shadow) is untouched. */
+.scenario-button:active {
+  background: var(--surface-2);
+}
+
+/* Engine-initialisation failure only: native disabled keeps tab order and
+   pointer events as the platform defines them — opacity dims the glyph alone. */
+.scenario-button:disabled {
+  opacity: 0.5;
 }
 
 .scenario-button:focus-visible,
@@ -238,6 +340,13 @@ body {
   text-transform: uppercase;
 }
 
+/* Flows-section play control mirroring the rail button's :disabled rule above: native
+   `disabled` drops it out of tab order; this supplies the 50% opacity. Disabled marks
+   "cannot run", never "running" — that path keeps class + data-running + aria-pressed only. */
+.flow-row__play:disabled {
+  opacity: 0.5;
+}
+
 /* 2px bottom-edge progress bar driven by --scenario-progress (0–100%). Set
    from main.ts while running; reset on stop. Reduced motion steps it per hop
    rather than animating width continuously. */
@@ -251,12 +360,12 @@ body {
   background-color: var(--flow-control);
 }
 
-/* --space-24 before the stage lives here as the stage's own margin-top; it stacks
-   on the shell's bottom padding (--space-12) within the nested shell. */
+/* --space-8 before the stage lives here as the stage's own margin-top; it stacks
+    on the shell's bottom padding (--space-12) within the nested shell. */
 .topology-stage {
   position: relative;
   isolation: isolate;
-  margin-top: var(--space-24);
+  margin-top: var(--space-8);
 }
 
 /* Single restrained two-hue radial bloom (control + infer are the two dominant
@@ -286,26 +395,59 @@ body {
   font-size: var(--text-sm);
 }
 
-.canvas-dimmer {
-  position: absolute;
-  z-index: 2;
-  inset: 0;
-  background: color-mix(in srgb, var(--substrate) 72%, transparent);
-  cursor: pointer;
+/* Loading skeleton shown before topology data resolves (index.html static markup,
+   replaced by the app on success or an error region on failure). Filled with
+   --surface at the wide-stage aspect ratio; no spinner, no network-implying text. */
+.stage-skeleton {
+  box-sizing: border-box;
+  width: 100%;
+  aspect-ratio: 14 / 9;
+  background: var(--surface);
+}
+
+/* Empty-state replacement sentence for a zero-length scenarios array. Topology still
+   renders in full below this; the idle tour does not start. */
+.empty-scenarios {
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--space-4) 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+/* Error region replacing #app when the loader throws. At --text-base in --ink with a
+   link back to the repository. Contained to the stage area; masthead/Decisions/footer stay. */
+.stage-error {
+  box-sizing: border-box;
+  margin: var(--space-8) auto 0;
+  padding: var(--space-8) var(--space-6);
+  max-width: var(--measure-prose);
+  color: var(--ink);
+  font-size: var(--text-base);
+}
+
+.stage-error__message a {
+  color: var(--flow-control);
 }
 
 .inspector {
-  position: absolute;
-  z-index: 3;
-  top: var(--space-4);
-  right: var(--space-4);
-  width: min(22rem, calc(100% - 2.5rem));
   box-sizing: border-box;
+  width: 100%;
   padding: var(--space-4) var(--space-6) var(--space-6);
-  border: 1px solid var(--flow-control);
-  border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 1rem 3rem color-mix(in srgb, var(--substrate) 80%, transparent);
+  border: 1px solid var(--flow-control);
+  border-radius: var(--radius-md);
+  /* Panel enter/exit: slow ease-out fade + settle. The hidden attribute toggles
+     the panel; reduced motion zeroes the duration below (spec 6.9). */
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--motion-slow) var(--ease-out),
+    transform var(--motion-slow) var(--ease-out);
+}
+
+.inspector:not([hidden]) {
+  opacity: 1;
+  transform: none;
 }
 
 .inspector__topline {
@@ -386,13 +528,16 @@ body {
 }
 
 .node-box {
-  stroke-width: 1.5;
-  transition: stroke-width 120ms ease, stroke 120ms ease;
+  stroke-width: var(--border-hair);
+  transition: stroke-width var(--motion-fast) var(--ease-standard),
+    stroke var(--motion-fast) var(--ease-standard);
 }
 
+/* Hover raises border weight only (hair -> emphasis): never transform, shadow
+   or scale. --border-emphasis matches the scenario-button hover accent. */
 .node-control:hover .node-box {
   stroke: var(--ink-muted);
-  stroke-width: 2.25;
+  stroke-width: var(--border-emphasis);
 }
 
 .node-control:focus-visible .node-box,
@@ -485,22 +630,48 @@ body {
   .flow-legend ul {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
 
-  .canvas-dimmer {
-    position: fixed;
-    inset: 0;
+@media (max-width: 1023px) {
+  /* Below desktop the shell is a single column. display:contents on the control
+     column hoists its children into the shell's flex layout so the scenario rail
+     can move above the stage and the flow key stays below it without reordering
+     the DOM — the desktop two-column composition relies on the block default. */
+  .interaction-shell {
+    display: flex;
+    flex-direction: column;
   }
 
-  .inspector {
-    position: fixed;
-    top: auto;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    max-height: 55vh;
-    overflow-y: auto;
-    border-radius: 8px 8px 0 0;
+  .control-column {
+    display: contents;
+  }
+
+  /* Scenario rail rides above the diagram; the flow key and inspector remain
+     below it in natural document order. */
+  .scenario-rail {
+    order: -1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  /* Horizontal scroll rail. Proximity (never mandatory): mandatory snapping can
+     leave a keyboard-focused entry scrolled only partway into view. Each entry's
+     scroll-margin-inline holds breathing room at the snap edge so its focus ring
+     stays inside the rail. */
+  .scenario-buttons {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .scenario-button {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    scroll-margin-inline: var(--space-4);
   }
 }
 
@@ -602,13 +773,92 @@ body {
   text-anchor: middle;
 }
 
-/* Flat-clamp fallback so --text-hero (3.5rem floor) does not balloon the title at
-   phone widths; max-width tightens from 16ch to ~14ch. Surrounding padding/margins
-   already come from tokens, so nothing raw leaks here. */
+/* Flat-size fallback so the title does not balloon at phone widths; max-width
+    tightens from 16ch to ~14ch. Surrounding padding/margins already come from
+    tokens, so nothing raw leaks here. */
 @media (max-width: 640px) {
   .page-header h1 {
     max-width: 14ch;
-    font-size: clamp(2.4rem, 12vw, 3rem);
+    font-size: var(--text-xl);
+  }
+}
+
+/* Masthead padding shrinks with width so less of the fold is spent above the
+   diagram. Horizontal gutter stays at space-6 (the rhythm every section keeps);
+   only the vertical cadence compresses: space-8 at ≤768px, space-6 at ≤390px. A
+   short viewport (≤480 tall) collapses the masthead to space-4 regardless of
+   width; this rule sits last so height wins when both a width and the height
+   query match. */
+@media (max-width: 768px) {
+  .page-header {
+    padding: var(--space-8) var(--space-6) var(--space-8);
+  }
+}
+
+@media (max-width: 390px) {
+  .page-header {
+    padding: var(--space-6);
+  }
+
+  /* Bottom sheet: anchored to the viewport bottom, capped at 60vh so its top
+     edge clears the SVG's upper half, with contained overscroll so pulling
+     inside the sheet never drags the page behind it. */
+  .inspector {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+}
+
+@media (max-height: 480px) {
+  /* Short-viewport (landscape phone, height <=480) masthead compression per the
+     phase-13b table. Squeeze the header to reclaim fold height for the diagram
+     while sizing each line so it stays under 35% of viewport height. The stage
+     returns to its normal space-8 lead-in (below the rail) and caps at 70vh so
+     the stacked topology shrinks to fit rather than past the fold; the svg
+     scales to fit with no horizontal overflow. #hero-readout is scoped to
+     .page-header so its smaller size outranks that selector's base definition,
+     which sits later in this file. */
+  .page-header {
+    padding: var(--space-4) var(--space-6) var(--space-4);
+  }
+
+  .page-header h1 {
+    font-size: var(--text-xl);
+    max-width: none;
+  }
+
+  .page-header p {
+    font-size: var(--text-base);
+    margin-top: var(--space-4);
+    /* In a short, wide frame horizontal room is abundant and vertical room is
+       scarce, so release the prose measure cap here: the sentence fits one line
+       across the container (its one-line width sits inside it), collapsing the
+       masthead well under 35% of viewport height. Bounded by the container, so
+       it can never hide or overflow content. */
+    max-width: none;
+  }
+
+  .page-header #hero-readout {
+    font-size: var(--text-xs);
+    margin-top: var(--space-3);
+  }
+
+  .topology-stage {
+    margin-top: var(--space-8);
+    max-height: 70vh;
+  }
+
+  #app svg {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 70vh;
   }
 }
 
@@ -618,7 +868,7 @@ body {
 #hero-readout {
   box-sizing: border-box;
   max-width: var(--measure-prose);
-  margin: var(--space-8) 0 0;
+  margin: var(--space-3) 0 0;
   color: var(--ink-muted);
   font-family: 'IBM Plex Mono', monospace;
   font-size: var(--text-sm);
@@ -784,7 +1034,7 @@ body {
   min-height: 2.75rem;
   box-sizing: border-box;
   padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--rule);
+  border: var(--border-hair) solid var(--rule);
   border-radius: 6px;
   background: var(--surface);
   color: var(--ink);
@@ -792,11 +1042,20 @@ body {
   font: inherit;
   font-weight: 600;
   text-align: left;
-  transition: border-color 160ms ease, background-color 160ms ease;
+  transition: border-width var(--motion-fast) var(--ease-standard),
+    background-color var(--motion-fast) var(--ease-standard);
 }
 
+/* Raises border width only (hair -> emphasis): never color, transform, shadow
+   or scale. */
 .flow-row__play:hover {
-  border-color: var(--ink-muted);
+  border-width: var(--border-emphasis);
+}
+
+/* Press steps the fill up one shade over --motion-fast. Kept to background so
+   the running-state inset indicator (its border + box-shadow) is untouched. */
+.flow-row__play:active {
+  background: var(--surface-2);
 }
 
 .flow-row__progress {
@@ -871,12 +1130,13 @@ a:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scenario-button,
-  .node-box,
-  .flow-row__play,
-  .flow-row::before {
-    transition: none;
-  }
+   .scenario-button,
+   .node-box,
+   .flow-row__play,
+   .flow-row::before,
+   .inspector {
+     transition: none;
+   }
 
   .packet {
     display: none;

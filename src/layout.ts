@@ -32,18 +32,33 @@ export const STAGE_STACK_THRESHOLD = 900
 
 const STACK_SIDE_MARGIN = 20
 const STACK_TOP = 24
-const STACK_HEADER = 56
-const STACK_ROW_PITCH = 64
-const STACK_ZONE_GAP = 28
+const STACK_HEADER = 40
+const STACK_ZONE_GAP = 20
+
+// STACK_ROW_PITCH is derived from live data so adding a node cannot silently
+// breach the viewBox height bound (spec: stacked-layout constants).
+const STACK_PITCH_FLOOR = 40 // NODE_HEIGHT 36 + 4px minimum gutter
+const STACK_PITCH_CEIL = 64 // the pre-change value; never exceed it
+const STACK_BUDGET = 1200
+
+function stackRowPitch(nodeCount: number, zoneCount: number): number {
+  const chrome = zoneCount * STACK_HEADER
+    + (zoneCount - 1) * STACK_ZONE_GAP
+    + 2 * STACK_TOP
+    + zoneCount * 20 // per-zone bottom padding
+  const budget = Math.floor((STACK_BUDGET - chrome) / nodeCount)
+  return Math.max(STACK_PITCH_FLOOR, Math.min(STACK_PITCH_CEIL, budget))
+}
 
 export function stackedLayout(stageWidth: number): StageLayout {
   const width = Math.max(1, Math.round(stageWidth))
+  const pitch = stackRowPitch(topology.nodes.length, topology.zones.length)
   const zones: Record<string, ZoneLayout> = {}
   let y = STACK_TOP
 
   for (const zone of topology.zones) {
     const nodeCount = topology.nodes.filter((node) => node.zone === zone.id).length
-    const height = STACK_HEADER + nodeCount * STACK_ROW_PITCH + 20
+    const height = STACK_HEADER + nodeCount * pitch + 20
     zones[zone.id] = {
       x: STACK_SIDE_MARGIN,
       y,
@@ -90,10 +105,11 @@ export function getNodePositions(zoneId: string, stageLayout: StageLayout = layo
 
   const nodes = topology.nodes.filter((node) => node.zone === zoneId)
   if (stageLayout.mode === 'stacked') {
+    const pitch = stackRowPitch(topology.nodes.length, topology.zones.length)
     return new Map(
       nodes.map((node, index) => [node.id, {
         x: zone.x + zone.width / 2,
-        y: zone.y + STACK_HEADER + (index + 0.5) * STACK_ROW_PITCH,
+        y: zone.y + STACK_HEADER + (index + 0.5) * pitch,
       }]),
     )
   }
@@ -164,7 +180,8 @@ const formatCoordinate = (value: number): string => value.toFixed(1)
 function stackedChannelPath(from: NodeRect, to: NodeRect, stageLayout: StageLayout): string | undefined {
   const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
   const toCenter = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
-  if (Math.abs(toCenter.y - fromCenter.y) < STACK_ROW_PITCH + 1) return undefined
+  const pitch = stackRowPitch(topology.nodes.length, topology.zones.length)
+  if (Math.abs(toCenter.y - fromCenter.y) < pitch + 1) return undefined
 
   const hash = Math.abs(Math.round(from.x * 3 + from.y * 5 + to.x * 7 + to.y * 11))
   const lane = hash % 3

@@ -183,28 +183,45 @@ Content is unchanged: node label, zone label, kind label, transitional status wh
 
 **≤ 390px** — as above, plus: masthead padding `var(--space-6)`; node detail becomes a bottom sheet with `overscroll-behavior: contain`, height ≤ 60% of viewport height, top edge below the vertical midpoint of the SVG's visible area; the stacked topology fits within 1200px of SVG height.
 
-**Stacked-layout constants** in `src/layout.ts`: `STACK_ROW_PITCH` 64 → 42, `STACK_HEADER` 56 → 40, `STACK_ZONE_GAP` 28 → 20. `STACK_TOP` unchanged at 24. `NODE_HEIGHT` unchanged at 36.
+**Stacked-layout constants** in `src/layout.ts`: `STACK_HEADER` 56 → 40, `STACK_ZONE_GAP` 28 → 20. `STACK_TOP` unchanged at 24. `NODE_HEIGHT` unchanged at 36.
 
-Derivation to preserve, where `N` is `topology.nodes.length` and `Z` is `topology.zones.length`:
+`STACK_ROW_PITCH` SHALL NOT be a fixed constant. It SHALL be computed from the live data so that adding a node cannot silently breach the height bound:
 
+```ts
+const STACK_PITCH_FLOOR = 40   // NODE_HEIGHT 36 + 4px minimum gutter
+const STACK_PITCH_CEIL  = 64   // the pre-change value; never exceed it
+const STACK_BUDGET      = 1200
+
+function stackRowPitch(nodeCount: number, zoneCount: number): number {
+  const chrome = zoneCount * STACK_HEADER
+              + (zoneCount - 1) * STACK_ZONE_GAP
+              + 2 * STACK_TOP
+              + zoneCount * 20          // per-zone bottom padding
+  const budget = Math.floor((STACK_BUDGET - chrome) / nodeCount)
+  return Math.max(STACK_PITCH_FLOOR, Math.min(STACK_PITCH_CEIL, budget))
+}
 ```
-N × STACK_ROW_PITCH  +  Z × STACK_HEADER  +  (Z-1) × STACK_ZONE_GAP
-  +  2 × STACK_TOP  +  Z × 20            ≤ 1200
-```
 
-At the current data (N = 22, Z = 3): 22 × 42 = 924; 120; 40; 48; 60. Total 1192 ≤ 1200.
+At the current data (22 nodes, 3 zones) this yields pitch 42 and a total of 1192px. At 21 it yields 44; at 23 it yields 40. Beyond 23 nodes the floor is reached and the bound is legitimately breached — the acceptance criterion must fail rather than the floor being lowered.
 
-**Recompute against the live counts before accepting, not against the numbers above.** Pitch 44 fits 21 nodes and overflows at 22 — this bound is sensitive to a single node being added, which is exactly what `phase-14-inference-topology` does.
+**Short viewports** — at `(max-height: 480px)` the masthead SHALL be reduced further:
 
-Note the resulting gutter: pitch 44 minus `NODE_HEIGHT` 36 leaves 8px between node boxes. Acceptance is measured on **label** bounding boxes, not node boxes.
+| Element | Short-viewport value |
+|---|---|
+| `.page-header` padding | `var(--space-4)` top and bottom |
+| `h1` | `var(--text-xl)`, `max-width: none`, one line |
+| standfirst | `var(--text-base)`, `margin-top: var(--space-4)` |
+| `#hero-readout` | `var(--text-xs)`, `margin-top: var(--space-3)` |
+| `.topology-stage` | `margin-top: var(--space-8)`, capped at `70vh` |
 
-**Short viewports** — at `(max-height: 480px)`, masthead padding reduces to `var(--space-4)` and the stage is capped at `70vh` with the SVG scaled to fit.
+All three masthead elements are retained; none is hidden. The masthead SHALL occupy no more than 35% of viewport height. That is a constraint the stylesheet controls directly; a visible-SVG-height target is a byproduct of the diagram's own height and cannot be satisfied by masthead rules alone.
 
 **Touch targets** — node height remains 36px, which meets WCAG 2.5.8 AA (24px minimum) and does not meet 2.5.5 AAA (44px). This is a recorded position, not an oversight.
 
 #### Scenario: Stacked topology height and label clearance at 390px
 
 - **GIVEN** the page at 390×844
+- **THEN** `STACK_ROW_PITCH` is the value returned by `stackRowPitch()` for the live node and zone counts, not a literal
 - **THEN** the SVG `viewBox` height is ≤ 1200
 - **AND** every node label and every zone label is present (`topology.nodes.length` and `topology.zones.length` respectively)
 - **AND** the vertical clearance between the bounding boxes of any two adjacent node labels is ≥ 6px
@@ -212,7 +229,10 @@ Note the resulting gutter: pitch 44 minus `NODE_HEIGHT` 36 leaves 8px between no
 #### Scenario: Landscape phone remains usable
 
 - **GIVEN** a 844×390 viewport with `scrollY === 0`
-- **THEN** at least 200px of the SVG is within the viewport
+- **THEN** `.page-header`'s bounding height is ≤ 35% of viewport height
+- **AND** the SVG's top edge is within the viewport
+- **AND** the `h1` renders on a single line
+- **AND** the title, standfirst and readout are all present and legible
 - **AND** there is no horizontal overflow
 
 #### Scenario: Bottom sheet does not cover the stage or chain scroll

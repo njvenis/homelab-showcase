@@ -26,6 +26,10 @@ Removing `aria-modal` without revising `closeInspectorButton.focus()` would prod
 
 Pitch 42 against `NODE_HEIGHT` 36 leaves a 6px gutter between node boxes. Boxes not overlapping is not the same as labels not colliding, so acceptance is measured on label bounding boxes with a 6px clearance floor. `NODE_HEIGHT` is not reduced: 36px meets WCAG 2.5.8 AA for touch targets and reducing it would put that at risk to buy vertical space the pitch change already provides.
 
+## Corrections during implementation
+
+Two constants in the original draft were asserted rather than derived. Pitch 44 fitted 21 nodes and overflowed at 22, which `phase-14-inference-topology` produced. And "≥200px of SVG visible" at 844×390 depended on the diagram's height as well as the masthead, so no masthead rule could satisfy it. Both are now computed: the pitch from live counts, the short-viewport bound as a percentage of viewport height.
+
 ## Risks
 
 - **Two-column at 1024px could crowd the stage.** The width arithmetic is written into the spec so it can be rechecked rather than trusted, and a documented fallback exists. If shell padding or gap is changed during implementation, the arithmetic must be recomputed before the change is accepted.
