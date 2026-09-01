@@ -1,7 +1,7 @@
 ## 0. Baseline
 
-- [ ] 0.1 Build current `main` and capture screenshots at 390, 768, 1024 and 1440 in idle state into `tests/visual/baseline/`. Commit. Verify four non-empty files.
-- [ ] 0.2 Record the current Lighthouse accessibility score at 390px and 1440px. Note both numbers in the commit message.
+- [x] 0.1 Build current `main` and capture screenshots at 390, 768, 1024 and 1440 in idle state into `tests/visual/baseline/`. Commit. Verify four non-empty files.
+- [x] 0.2 Record the current Lighthouse accessibility score at 390px and 1440px. Note both numbers in the commit message.
 
 ## 1. Live region
 
