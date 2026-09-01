@@ -4,6 +4,7 @@ export interface Zone {
   id: string
   label: string
   sub: string
+  emphasis?: 'primary' | 'context'
 }
 
 export interface Node {

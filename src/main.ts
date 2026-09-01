@@ -18,14 +18,32 @@ const kindLabels: Record<FlowKind, string> = {
   network: 'Network',
 }
 
-const legendEntries = [
-  { variable: '--flow-control', label: 'Control', meaning: 'orchestration and commands' },
-  { variable: '--flow-memory', label: 'Memory', meaning: 'reads and writes' },
-  { variable: '--flow-infer', label: 'Inference', meaning: 'model work' },
-  { variable: '--flow-health', label: 'Health', meaning: 'checks and telemetry' },
-  { variable: '--flow-egress', label: 'Egress', meaning: 'outbound delivery' },
-  { variable: '--flow-network', label: 'Network', meaning: 'peer and inbound links' },
-] as const
+// Per-flow descriptions for the derived legend. The legend *entries* are data
+// derived (see renderLegend); these are the static labels/meanings describing each.
+const LEGEND_MEANING: Record<FlowKind, string> = {
+  control: 'orchestration and commands',
+  infer: 'model work',
+  memory: 'reads and writes',
+  health: 'checks and telemetry',
+  egress: 'outbound delivery',
+  network: 'peer and inbound links',
+} as const
+
+// Order in which a scenario's dominant flow hue is picked (existing tie-break
+// behaviour: earliest kind wins a count tie). Distinct from LEGEND_KIND_ORDER below.
+const DOMINANT_FLOW_ORDER: readonly FlowKind[] = [
+  'control', 'memory', 'infer', 'health', 'egress', 'network',
+]
+
+// Canonical legend order, filtered to the kinds actually present on edges so the
+// key is deterministic regardless of data ordering.
+const LEGEND_KIND_ORDER: readonly FlowKind[] = [
+  'control', 'infer', 'memory', 'health', 'network', 'egress',
+]
+
+// Scenario state carries the running participating-edge set on subscribers; declare
+// it here so main.ts can read it without editing scenario.ts.
+const EMPTY_PARTICIPATING = new Set<string>()
 
 // Data-module bindings, populated once in init() from the dynamically loaded loaders.
 // Render helpers below read these at call time, so they can stay definition-only here.
@@ -38,10 +56,6 @@ let selectLayout!: (stageWidth: number) => StageLayout
 let firstNodeId: string | undefined
 let dominantFlowById!: Map<string, FlowKind>
 
-const LEGEND_KIND_ORDER: readonly FlowKind[] = [
-  'control', 'memory', 'infer', 'health', 'egress', 'network',
-]
-
 function dominantFlowKind(scenario: typeof scenarios[number]): FlowKind {
   const counts = new Map<FlowKind, number>()
   for (const hop of scenario.hops) {
@@ -50,7 +64,7 @@ function dominantFlowKind(scenario: typeof scenarios[number]): FlowKind {
   }
   let chosen: FlowKind = 'control'
   let highest = -1
-  for (const kind of LEGEND_KIND_ORDER) {
+  for (const kind of DOMINANT_FLOW_ORDER) {
     const count = counts.get(kind) ?? 0
     if (count > highest) {
       highest = count
@@ -73,7 +87,7 @@ function renderFlowsSection(): string {
       `<h3 class="flow-row__title">${esc(scenario.name)}</h3>` +
       `<p class="flow-row__text">${esc(description)}</p>` +
       '</div>' +
-      `<button class="flow-row__play" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario"><span class="flow-row__label">Play</span><span class="flow-row__progress" aria-hidden="true"></span><span class="scenario-button__status" hidden>Running</span></button>` +
+      `<button class="flow-row__play" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario"${scenarioPlayable(scenario) ? '' : ' disabled'}><span class="flow-row__label">Play</span><span class="flow-row__progress" aria-hidden="true"></span><span class="scenario-button__status" hidden>Running</span></button>` +
       '</article>'
     )
   }).join('')
@@ -130,10 +144,18 @@ function renderTopology(stageLayout: StageLayout): string {
   const zoneEls = topology.zones.map((zone) => {
     const r = stageLayout.zones[zone.id]
     if (!r) throw new Error(`no layout for zone: ${zone.id}`)
+    // emphasis defaults to primary when absent; only "context" renders distinctly.
+    const isContext = (zone as { emphasis?: string }).emphasis === 'context'
+    const zoneClass = isContext ? 'zone zone--context' : 'zone'
+    // The zone-label/sub-label are siblings of the rect, not descendants, so they must
+    // carry the context marker themselves for CSS to dim them — a descendant selector
+    // off the rect could never reach them.
+    const labelClass = isContext ? `zone-label zone--context` : 'zone-label'
+    const subClass = isContext ? `zone-sub zone--context` : 'zone-sub'
     return (
-      `<rect class="zone" data-zone-id="${esc(zone.id)}" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="${ZONE_RX}"/>` +
-      `<text class="zone-label" data-zone-label="${esc(zone.id)}" x="${r.x + r.padding}" y="${r.y + r.padding}">${esc(zone.label)}</text>` +
-      (zone.sub ? `<text class="zone-sub" data-zone-sub="${esc(zone.id)}" x="${r.x + r.padding}" y="${r.y + r.padding + 22}">${esc(zone.sub)}</text>` : '')
+      `<rect class="${zoneClass}" data-zone-id="${esc(zone.id)}" data-emphasis="${isContext ? 'context' : 'primary'}" x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="${ZONE_RX}"/>` +
+      `<text class="${labelClass}" data-zone-label="${esc(zone.id)}" x="${r.x + r.padding}" y="${r.y + r.padding}">${esc(zone.label)}</text>` +
+      (zone.sub ? `<text class="${subClass}" data-zone-sub="${esc(zone.id)}" x="${r.x + r.padding}" y="${r.y + r.padding + 22}">${esc(zone.sub)}</text>` : '')
     )
   })
 
@@ -144,6 +166,9 @@ function renderTopology(stageLayout: StageLayout): string {
 
   const markerDefs = '<defs><marker id="arrowhead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><polygon class="edge-marker" points="0,0 9,5 0,10"/></marker></defs>'
 
+  // Each edge's glow + edge paths are wrapped so focus dimming (opacity on the group)
+  // never collides with packet.ts mutating the inner path elements. Inner classes,
+  // ids, data-edge-id, markers and d are unchanged; no node wrapper is added here.
   const edgeEls = topology.edges.map((edge) => {
     const from = nodeRects.get(edge.from)!
     const to = nodeRects.get(edge.to)!
@@ -152,8 +177,10 @@ function renderTopology(stageLayout: StageLayout): string {
       ? 'marker-start="url(#arrowhead)" marker-end="url(#arrowhead)"'
       : 'marker-end="url(#arrowhead)"'
     return (
+      `<g class="edge-group" data-edge-id="${esc(edge.id)}">` +
       `<path class="edge-glow edge--${esc(edge.kind)}" data-edge-id="${esc(edge.id)}" d="${d}" aria-hidden="true" pointer-events="none"/>` +
-      `<path class="edge edge--${esc(edge.kind)}" id="${esc(edge.id)}" d="${d}" ${markers}/>`
+      `<path class="edge edge--${esc(edge.kind)}" id="${esc(edge.id)}" d="${d}" ${markers}/>` +
+      '</g>'
     )
   })
 
@@ -177,10 +204,26 @@ function renderTopology(stageLayout: StageLayout): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="group" aria-labelledby="topology-title" aria-describedby="topology-desc"><title id="topology-title">Homelab stack topology</title><desc id="topology-desc">${esc(topologyDescription())}</desc>${markerDefs}${zoneEls.join('')}${edgeEls.join('')}${nodeEls.join('')}</svg>`
 }
 
+// Scenario metadata derived from the script, never authored into src/data/. Hop
+// count is hops.length; duration is max(at + duration), guarded so an empty hop
+// array renders only "0 hops" (max() over [] is -Infinity and must not reach the DOM).
+function scenarioPlayable(scenario: typeof scenarios[number]): boolean {
+  return scenario.hops.length > 0
+}
+
+function scenarioSummary(scenario: typeof scenarios[number]): string {
+  const count = scenario.hops.length
+  if (count === 0) return '0 hops'
+  const maxMs = Math.max(...scenario.hops.map((hop) => hop.at + hop.duration))
+  return `${count} hops · runtime ${(maxMs / 1000).toFixed(1)}s`
+}
+
 function renderScenarioRail(): string {
   const buttons = scenarios.map((scenario) => (
-    `<button class="scenario-button" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario">` +
+    `<button class="scenario-button" type="button" data-scenario-id="${esc(scenario.id)}" aria-label="Play ${esc(scenario.name)} scenario"` +
+    (!scenarioPlayable(scenario) ? ' disabled' : '') + `>` +
     `<span class="scenario-button__name">${esc(scenario.name)}</span>` +
+    `<span class="scenario-button__meta">${esc(scenarioSummary(scenario))}</span>` +
     `<span class="scenario-button__progress" aria-hidden="true"></span>` +
     `<span class="scenario-button__status" hidden>Running</span>` +
     '</button>'
@@ -197,8 +240,11 @@ function renderScenarioRail(): string {
 }
 
 function renderLegend(): string {
-  const entries = legendEntries.map(({ variable, label, meaning }) => (
-    `<li class="legend-entry"><span class="legend-swatch legend-swatch--dash" style="--legend-flow: var(${variable})" aria-hidden="true"></span><span><strong>${label}</strong><span class="legend-meaning">${meaning}</span></span></li>`
+  // Entries derived from the distinct kinds on edges (not node kinds), filtered to
+  // the canonical order so the key is deterministic regardless of data ordering.
+  const presentKinds = new Set(topology.edges.map((edge) => edge.kind))
+  const entries = LEGEND_KIND_ORDER.filter((kind) => presentKinds.has(kind)).map((kind) => (
+    `<li class="legend-entry"><span class="legend-swatch legend-swatch--dash" style="--legend-flow: var(--flow-${kind})" aria-hidden="true"></span><span><strong>${esc(kindLabels[kind])}</strong><span class="legend-meaning">${esc(LEGEND_MEANING[kind])}</span></span></li>`
   ))
   return (
     '<section class="flow-legend" aria-labelledby="legend-title">' +
@@ -250,6 +296,7 @@ async function init(): Promise<void> {
       completedHops: 0,
       totalHops: 0,
       arrival: null,
+      participatingEdgeIds: EMPTY_PARTICIPATING,
     })
     let play: (id: string) => void = () => {}
     let stop: () => void = () => {}
@@ -291,6 +338,9 @@ async function init(): Promise<void> {
       (scenarios.length === 0
         ? '<p class="empty-scenarios">No scenarios are defined.</p>'
         : renderScenarioRail()) +
+      (scenarios.length > 0
+        ? '<section class="path-readout" aria-labelledby="path-readout-title"><h2 id="path-readout-title"></h2><ol class="path-readout__list"></ol></section>'
+        : '') +
       renderLegend() +
       '<aside class="inspector" id="node-inspector" role="region" aria-labelledby="inspector-title" aria-describedby="inspector-detail" hidden>' +
       '<div class="inspector__topline"><button class="inspector__close" id="inspector-close" type="button" aria-label="Close node inspector">Close</button></div>' +
@@ -312,6 +362,9 @@ async function init(): Promise<void> {
     const stage = document.querySelector<HTMLDivElement>('#topology-stage')!
     let renderedSvg = stage.querySelector<SVGSVGElement>('svg')!
     const renderedEdges = new Map<string, SVGPathElement>()
+    // One g.edge-group per edge; focus dimming (opacity) applies to these, not the
+    // packet-mutated path elements they wrap.
+    const edgeGroups = new Map<string, SVGGElement>()
     const edgesById = new Map(topology.edges.map((edge) => [edge.id, edge]))
     const nodeById = new Map(topology.nodes.map((node) => [node.id, node]))
     const zoneById = new Map(topology.zones.map((zone) => [zone.id, zone]))
@@ -329,9 +382,117 @@ async function init(): Promise<void> {
     let invokingNode: SVGGElement | null = null
     let selectedNodeId: string | null = null
 
+    // ---- Focus presentation ----
+    // Which edges/nodes stay at full opacity; every other group dims. A node
+    // selection beats playback: the node, its incident edges and adjacent nodes win,
+    // so dimming is additive emphasis that never stops, pauses or restarts play.
+    function resolveFocusSet(): { dimAll: boolean; edges: ReadonlySet<string>; nodes: Set<string> } {
+      const selected = selectedNodeId
+      if (selected) {
+        const edges = new Set<string>()
+        const nodes = new Set<string>([selected])
+        for (const edge of topology.edges) {
+          if (edge.from === selected || edge.to === selected) {
+            edges.add(edge.id)
+            nodes.add(edge.from)
+            nodes.add(edge.to)
+          }
+        }
+        return { dimAll: false, edges, nodes }
+      }
+      const state = getState()
+      if (state.scenarioId !== null && state.running) {
+        const participating = state.participatingEdgeIds
+        const nodes = new Set<string>()
+        for (const id of participating) {
+          const edge = edgesById.get(id)
+          if (edge) { nodes.add(edge.from); nodes.add(edge.to) }
+        }
+        return { dimAll: false, edges: participating, nodes }
+      }
+      // Idle or a completed run with nothing selected: no dimming at all.
+      return { dimAll: true, edges: EMPTY_PARTICIPATING, nodes: EMPTY_PARTICIPATING }
+    }
+
+    // Apply the focus set as opacity on the dimmable wrappers only. Active groups are
+    // pinned to "1" so transitions run between the two states, never partial ones.
+    function applyFocusState(): void {
+      const focus = resolveFocusSet()
+      for (const [id, group] of edgeGroups) {
+        group.setAttribute('opacity', focus.dimAll || focus.edges.has(id) ? '1' : 'var(--dim-inactive-edge)')
+      }
+      for (const [id, control] of nodeControls) {
+        control.setAttribute('opacity', focus.dimAll || focus.nodes.has(id) ? '1' : 'var(--dim-inactive-node)')
+      }
+    }
+
+    // Arrival pulses fire only on a control currently at full opacity, suppressing
+    // them on dimmed (non-relevant) nodes under selection or playback.
+    function nodeIsFullOpacity(nodeId: string): boolean {
+      const focus = resolveFocusSet()
+      return focus.dimAll || focus.nodes.has(nodeId)
+    }
+
+    // Path readout: the running/initial scenario's whole script shown in advance, one
+    // row per hop in ascending `at` order, always declared from → to with a distinct
+    // reverse indicator. Not a live region; the current step marks while running and
+    // clears on completion. Initially shows the first scenario.
+    let pathReadoutEl: HTMLElement | null = document.querySelector<HTMLElement>('.path-readout') ?? null
+    let readoutScenarioId: string | null = null
+
+    const labelOf = (nodeId: string): string => nodeById.get(nodeId)?.label ?? nodeId
+
+    function renderPathRows(scenario: typeof scenarios[number]): void {
+      const ordered = scenario.hops
+        .map((hop, index) => ({ hop, index }))
+        .sort((a, b) => a.hop.at - b.hop.at || a.index - b.index)
+      const items = ordered.map(({ hop, index }) => {
+        const edge = edgesById.get(hop.edge)
+        const rowClass = hop.reverse ? 'path-readout__row path-readout__row--reverse' : 'path-readout__row'
+        // Reverse keeps the declared from → to unchanged; a distinct ← cell (with an
+        // accessible "reverse" label) marks travel against the declared direction.
+        const reverseCell = hop.reverse
+          ? `<span class="path-readout__reverse"><span aria-hidden="true">←</span><span class="sr-only">reverse</span></span>`
+          : ''
+        return (
+          `<li class="${rowClass}" data-hop="${index}" style="--path-accent: var(--flow-${edge?.kind ?? 'control'})">` +
+          `<span class="path-readout__stage path-readout__from">${esc(labelOf(edge?.from ?? ''))}</span>` +
+          `<span class="path-readout__arrow" aria-hidden="true">→</span>` +
+          `<span class="path-readout__stage path-readout__to">${esc(labelOf(edge?.to ?? ''))}</span>` +
+          `${reverseCell}` +
+          '</li>'
+        )
+      })
+      const list = pathReadoutEl?.querySelector<HTMLElement>('.path-readout__list')
+      const title = pathReadoutEl?.querySelector<HTMLHeadingElement>('#path-readout-title')
+      if (!list || !title) return
+      list.innerHTML = items.join('')
+      title.textContent = scenario.name
+    }
+
+    function updateReadout(): void {
+      const state = getState()
+      const target = scenarios.find((scenario) => scenario.id === state.scenarioId) ?? scenarios[0]
+      if (!target) return
+      if (readoutScenarioId !== target.id) {
+        readoutScenarioId = target.id
+        renderPathRows(target)
+      }
+      const running = state.scenarioId !== null && state.running
+      const currentHop = state.currentHop
+      const rows = pathReadoutEl?.querySelectorAll<HTMLElement>('.path-readout__row')
+      rows?.forEach((row) => {
+        row.classList.toggle('path-readout__row--current', running && Number(row.dataset.hop) === currentHop)
+      })
+    }
+
     function indexRenderedTopology(): void {
       renderedEdges.clear()
       for (const path of renderedSvg.querySelectorAll<SVGPathElement>('path.edge')) renderedEdges.set(path.id, path)
+      edgeGroups.clear()
+      for (const group of renderedSvg.querySelectorAll<SVGGElement>('g.edge-group')) {
+        if (group.dataset.edgeId) edgeGroups.set(group.dataset.edgeId, group)
+      }
       nodeControls.clear()
       for (const node of renderedSvg.querySelectorAll<SVGGElement>('.node-control')) {
         if (node.dataset.nodeId) nodeControls.set(node.dataset.nodeId, node)
@@ -383,6 +544,8 @@ async function init(): Promise<void> {
       if (invokingNode?.dataset.nodeId) invokingNode = nodeControls.get(invokingNode.dataset.nodeId) ?? null
       // Edge strings just changed during re-layout; refresh live packets' offset-path to track them.
       refreshPacketPaths()
+      // Groups were re-indexed; keep dimming consistent with the current selection/playback.
+      applyFocusState()
     }
 
     indexRenderedTopology()
@@ -424,6 +587,12 @@ async function init(): Promise<void> {
       inspectorStatus.hidden = !node.transitional
       inspector.hidden = false
       flowLegend.hidden = true
+      // A node selection permanently disarms the idle tour for the session and dims
+      // everything else to it. It never calls stop/restart — a running scenario stays
+      // running; selection simply overrides which edges/nodes stay lit.
+      tourSessionOpen = false
+      disarmTourTimer()
+      applyFocusState()
     }
 
     function closeInspector(): void {
@@ -443,6 +612,8 @@ async function init(): Promise<void> {
       previousRoving?.setAttribute('tabindex', '-1')
       target?.setAttribute('tabindex', '0')
       target?.focus({ preventScroll: true })
+      // Dismissing the selection restores playback focus (if running) or full opacity.
+      applyFocusState()
     }
 
     stage.addEventListener('click', (event) => {
@@ -715,6 +886,10 @@ async function init(): Promise<void> {
       caption.textContent = getState().caption ?? ''
       caption.hidden = getState().caption === null
       renderProgress()
+      // Selection/playback focus changes and the path-readout current step only shift
+      // at these state boundaries, so recompute both here.
+      applyFocusState()
+      updateReadout()
     })
 
     // ---- Arrival pulses ----
@@ -737,6 +912,9 @@ async function init(): Promise<void> {
     // arrivals never stack. Normal easing draws a border-width trip; reduced motion
     // holds the flow colour at fixed width briefly, then fades to the rule stroke.
     function emitArrivalPulse(arrival: Arrival): void {
+      // Only pulse a control at full opacity; arrivals landing on dimmed (non-relevant)
+      // nodes during selection or playback are suppressed.
+      if (!nodeIsFullOpacity(arrival.nodeId)) return
       const box = nodeControls.get(arrival.nodeId)?.querySelector<SVGRectElement>('rect.node-box')
       if (!box) return
       const colour = flowColour(arrival.flowKind)
@@ -819,9 +997,21 @@ async function init(): Promise<void> {
     // A genuine interaction ends the session tour for the remainder of the session
     // and cancels any tour-owned playback. Manual play still follows from the same
     // control (a button click plays); programmatic tour play fires no event here.
-    function onUserInteraction(): void {
-      tourSessionOpen = false
+    function onUserInteraction(event: Event): void {
       disarmTourTimer()
+      // Node-control interactions (pointer/keyboard/click on a node) close the idle
+      // session and clear ownership so the rest-and-loop can never resume, but they
+      // must NOT stop the active scenario — selection dims edges/nodes, it does not
+      // pause or restart playback. Everything else keeps the existing stop-tour path.
+      const node = event.target instanceof Element
+        ? event.target.closest<SVGGElement>('.node-control')
+        : null
+      if (node?.dataset.nodeId) {
+        tourSessionOpen = false
+        tourScenarioId = null
+        return
+      }
+      tourSessionOpen = false
       if (isTourOwnedRunning()) stop()
     }
 

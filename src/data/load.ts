@@ -29,6 +29,12 @@ export function validateTopology(topology: Topology): Map<string, Edge> {
     }
   }
 
+  for (const zone of topology.zones) {
+    if (zone.emphasis !== undefined && zone.emphasis !== 'primary' && zone.emphasis !== 'context') {
+      throw new Error(`zone ${zone.id} has an invalid emphasis: ${zone.emphasis}`)
+    }
+  }
+
   for (const edge of topology.edges) {
     for (const endpoint of [edge.from, edge.to]) {
       if (!nodes.has(endpoint)) {

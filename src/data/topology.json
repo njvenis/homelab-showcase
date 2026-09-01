@@ -2,7 +2,7 @@
   "zones": [
     { "id": "pi",     "label": "Raspberry Pi 5",        "sub": "2TB NVMe · always-on" },
     { "id": "wsl",    "label": "Workstation (WSL2)",    "sub": "RTX 5090 · Ryzen 9800X3D" },
-    { "id": "ext",    "label": "Outside the house",     "sub": "" }
+    { "id": "ext",    "label": "Outside the house",     "sub": "", "emphasis": "context" }
   ],
   "nodes": [
     { "id": "pihole",    "zone": "pi",  "label": "Pi-hole",           "kind": "network",  "detail": "DNS filtering for the house. A secondary resolver sits behind it so the Pi is not a single point of failure for name resolution." },

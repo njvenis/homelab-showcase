@@ -16,6 +16,8 @@ export type ScenarioState = Readonly<{
   completedHops: number
   totalHops: number
   arrival: Arrival | null
+  // Empty when idle/completed (see NO_PARTICIPATING_EDGES); populated in play().
+  participatingEdgeIds: ReadonlySet<string>
 }>
 
 export type ScenarioListener = (state: ScenarioState) => void
@@ -42,6 +44,10 @@ type ActiveRun = {
 const edgesById = new Map(topology.edges.map((edge) => [edge.id, edge]))
 const listeners = new Set<ScenarioListener>()
 let sequenceCounter = 0
+// Distinct hop edge ids of the running scenario, or this shared empty value when
+// idle/completed. Derived from the hop array once per play(), so it is order- and
+// timing-independent regardless of how hops actually fire.
+const NO_PARTICIPATING_EDGES: ReadonlySet<string> = new Set<string>()
 let state: ScenarioState = {
   scenarioId: null,
   running: false,
@@ -50,6 +56,7 @@ let state: ScenarioState = {
   completedHops: 0,
   totalHops: 0,
   arrival: null,
+  participatingEdgeIds: NO_PARTICIPATING_EDGES,
 }
 let activeRun: ActiveRun | undefined
 
@@ -85,6 +92,7 @@ function idleState(): ScenarioState {
     completedHops: 0,
     totalHops: 0,
     arrival: null,
+    participatingEdgeIds: NO_PARTICIPATING_EDGES,
   }
 }
 
@@ -100,6 +108,7 @@ function finish(run: ActiveRun): void {
     completedHops: run.scenario.hops.length,
     totalHops: run.scenario.hops.length,
     arrival: null,
+    participatingEdgeIds: NO_PARTICIPATING_EDGES,
   })
 }
 
@@ -175,6 +184,9 @@ export function play(id: string): void {
   const scenario = scenarios.find((candidate) => candidate.id === id)
   if (!scenario) throw new Error(`unknown scenario: ${id}`)
   validateScenario(scenario)
+  // A zero-hop scenario has nothing to animate; returning before stop()/setState means
+  // it can neither start an idle stage nor interrupt an otherwise-running playback.
+  if (scenario.hops.length === 0) return
   stop()
 
   const run: ActiveRun = {
@@ -195,6 +207,7 @@ export function play(id: string): void {
     completedHops: 0,
     totalHops: scenario.hops.length,
     arrival: null,
+    participatingEdgeIds: new Set<string>(scenario.hops.map((hop) => hop.edge)),
   })
   tick(run)
 }

@@ -87,11 +87,19 @@
    /* Radii */
    --radius-md: 8px;
 
-   /* Motion: hover/pressed transitions (fast), panel enter/exit (slow) */
+   /* Motion: hover/pressed transitions (fast), panel enter/exit (slow), focus dimming */
    --motion-fast: 120ms;
    --motion-slow: 400ms;
+   --motion-base: 220ms;
    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+   /* Focus — opacity of non-relevant groups under selection/playback, and the
+      context-zone tier. Two dim values: node groups carry label text that a 0.35
+      would drop below the contrast floor. */
+   --dim-inactive-edge: 0.35;
+   --dim-inactive-node: 0.55;
+   --zone-context-fill: color-mix(in oklch, var(--surface) 60%, var(--substrate));
 }
 
 html {
@@ -338,6 +346,12 @@ padding: 0;
   font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.scenario-button__meta {
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: var(--text-xs);
 }
 
 /* Flows-section play control mirroring the rail button's :disabled rule above: native
@@ -735,6 +749,21 @@ padding: 0;
   font-size: var(--text-xs);
 }
 
+/* Context tier — the external host rendered as a neighbour rather than a peer.
+    Dashed hair-width --rule boundary over a lighter substrate-mixed fill; primary
+    zones keep the base .zone treatment unchanged. The labels/sub-labels are siblings
+    of the rect, so they carry the context marker themselves to be dimmed here too. */
+.zone--context {
+  stroke-dasharray: 6 4;
+  stroke: var(--rule);
+  stroke-width: var(--border-hair);
+  fill: var(--zone-context-fill);
+}
+.zone-label.zone--context,
+.zone-sub.zone--context {
+  fill: var(--ink-muted);
+}
+
 .node-box {
   fill: var(--substrate);
   stroke: var(--rule);
@@ -771,6 +800,17 @@ padding: 0;
   font-size: var(--text-xs);
   font-weight: 500;
   text-anchor: middle;
+  /* Labels sit inside the dimmed g.node-control group; reset their own opacity so
+     they stay readable rather than inheriting the group's dim. */
+  opacity: 1;
+}
+
+/* Group-level focus dimming targets only these two wrappers as opacity, so it
+   never touches the packet-mutated path elements beneath them. Over motion-base
+   with the page settle ease; reduced motion zeroes it below. */
+.edge-group,
+.node-control {
+  transition: opacity var(--motion-base) var(--ease-out);
 }
 
 /* Flat-size fallback so the title does not balloon at phone widths; max-width
@@ -1131,14 +1171,91 @@ a:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
    .scenario-button,
-   .node-box,
-   .flow-row__play,
-   .flow-row::before,
-   .inspector {
-     transition: none;
-   }
+    .node-box,
+    .flow-row__play,
+    .flow-row::before,
+    .inspector,
+    .edge-group,
+    .node-control,
+    .path-readout__row {
+      transition: none;
+    }
 
   .packet {
     display: none;
+  }
+}
+
+/* ---- Path readout ---- */
+/* A scripted path shown in advance: one row per hop, mono, quiet. It is not a live
+   region and carries no counters/timestamps — just the ordered script plus the
+   current step, marked while running. Reads its accent colour per row from
+   --path-accent (the hop's flow hue), set inline by the renderer. */
+.path-readout {
+  box-sizing: border-box;
+  padding: var(--space-6) 0;
+}
+
+.path-readout > h2 {
+  margin: 0 0 var(--space-3);
+  color: var(--ink);
+  font-family: Fraunces, Georgia, serif;
+  font-size: var(--text-xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.path-readout__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.path-readout__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+  transition: background-color var(--motion-slow) var(--ease-standard),
+    border-left-color var(--motion-slow) var(--ease-standard);
+}
+
+/* Current step: rest fill rises to surface-2 with the hop's flow-colour left edge,
+   over motion-slow. Reduced motion zeroes the duration so it is instant. */
+.path-readout__row--current {
+  background: var(--surface-2);
+  border-left-color: var(--path-accent);
+}
+
+.path-readout__stage {
+  white-space: nowrap;
+}
+
+.path-readout__arrow {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+/* Reverse hop keeps the declared from → to; a distinct ← cell marks travel against
+    the declared direction. The separator itself is never flipped, and the inner
+    "reverse" text stays available to assistive tech while the glyph is decorative. */
+.path-readout__reverse {
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .path-readout__row {
+    transition: none;
   }
 }
